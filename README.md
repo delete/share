@@ -1,132 +1,168 @@
 # Share
 
-Compartilhamento instantâneo de artefatos HTML com integração para agentes de IA
-(Claude Code em primeiro lugar). Publique um arquivo HTML e receba um **link ao vivo**
-em segundos — opcionalmente protegido por senha e com slug customizado. Tudo expira
-automaticamente em **15 dias**.
+Instant HTML artifact sharing with integration for AI agents
+(Claude Code first). Publish an HTML file and get a **live link**
+in seconds — optionally password-protected and with a custom slug. Everything expires
+automatically after **15 days**.
 
-Stack mínima: **CLI em TypeScript/Bun** + **Cloudflare Workers** com **KV** (o TTL nativo
-do KV cobre a expiração).
+Minimal stack: **TypeScript/Bun CLI** + **Cloudflare Workers** with **KV** (KV's native TTL
+handles expiration).
 
-- 🌐 Ao vivo: **https://share.fellipe.dev** (fallback: `https://share.pinheiro-llip.workers.dev`)
-- 🎬 Demo: **https://share.fellipe.dev/d/demo**
+**Open source (MIT)** — run **your own** instance in minutes: see [Deploy your own](#deploy-your-own).
 
-## Funcionalidades
+- 🌐 Reference instance: **https://share.fellipe.dev** · 🎬 Demo: **https://share.fellipe.dev/d/demo**
 
-| Recurso | Como |
+## Features
+
+| Feature | How |
 | --- | --- |
-| Compartilhar artefato HTML | `share publish arquivo.html` → link ao vivo |
-| Visualização por link, sem conta | `GET /d/:id` serve o HTML |
-| Visualização com senha, sem conta | `--password=...` → gate PBKDF2 + cookie assinado (HMAC) |
-| Slug customizado | `--slug=meu-slug` |
-| Expiração de 15 dias | TTL nativo do Cloudflare KV |
-| Integração com Claude Code | skill em [`skill/share/SKILL.md`](skill/share/SKILL.md) |
-| Gerenciar (deletar/inspecionar) | token por documento, guardado em `~/.share` |
+| Share an HTML artifact | `share publish file.html` → live link |
+| View by link, no account | `GET /d/:id` serves the HTML |
+| Password-protected view, no account | `--password=...` → PBKDF2 gate + signed cookie (HMAC) |
+| Custom slug | `--slug=my-slug` |
+| 15-day expiration | Cloudflare KV native TTL |
+| Claude Code integration | skill at [`skill/share/SKILL.md`](skill/share/SKILL.md) |
+| Manage (delete/inspect) | per-document token, stored in `~/.share` |
 
-## Estrutura
+## Structure
 
 ```
 share/
 ├── worker/           # Cloudflare Worker (API + serving)
-│   ├── src/index.ts  # roteador + handlers
-│   ├── src/crypto.ts # PBKDF2 (senha), HMAC (cookie), ids
-│   ├── src/views.ts  # landing, gate de senha, erros
-│   └── wrangler.jsonc
-├── cli/              # CLI `share` (Bun)
+│   ├── src/index.ts  # router + handlers
+│   ├── src/crypto.ts # PBKDF2 (password), HMAC (cookie), ids
+│   ├── src/views.ts  # landing, password gate, errors
+│   └── wrangler.jsonc.example  # copy to wrangler.jsonc and fill in
+├── cli/              # `share` CLI (Bun)
 │   ├── bin/share.ts
 │   └── src/{api,config,ui}.ts
-├── skill/share/  # skill do Claude Code
-└── scripts/e2e.ts    # teste end-to-end (28 checks)
+├── skill/share/      # Claude Code skill
+├── scripts/e2e.ts    # end-to-end test (28 checks)
+├── AGENT_INSTALL_GUIDE.md  # runbook for an AI agent to provision everything
+└── LICENSE           # MIT
 ```
 
 ## CLI
 
 ```bash
-# instalar o binário `share` global (uma vez)
+# install the global `share` binary (once)
 cd cli && bun link
 
-share publish relatorio.html                       # publica e mostra o link
-share publish dash.html --slug=vendas-q3 --open     # slug + abre no browser
-share publish sigilo.html --password=segredo        # protegido por senha
-cat pagina.html | share publish -                   # via stdin
-share list                                          # seus documentos + expiração
-share info <id>                                     # metadados
-share delete <id>                                   # remove antes de expirar
-share config --api=https://sua-url                  # troca a API url
+share publish report.html                       # publishes and shows the link
+share publish dash.html --slug=sales-q3 --open     # slug + opens in the browser
+share publish secret.html --password=my-secret        # password-protected
+cat page.html | share publish -                   # via stdin
+share list                                          # your documents + expiration
+share info <id>                                     # metadata
+share delete <id>                                   # remove before expiration
+share config --api=https://your-url                 # change the API url
 ```
 
-Sem `bun link`, chame direto: `bun cli/bin/share.ts <comando>`.
+Without `bun link`, call it directly: `bun cli/bin/share.ts <command>`.
 
 ## API
 
-| Método | Rota | Descrição |
+| Method | Route | Description |
 | --- | --- | --- |
-| `POST` | `/api/v1/docs` | Publica. Body = HTML (`Content-Type: text/html`) ou JSON `{html,slug?,password?}`. Headers: `x-slug`, `x-password`, `x-agent-name`. |
-| `GET` | `/d/:id` | Visualiza (serve o HTML, ou o gate de senha). |
-| `POST` | `/d/:id/unlock` | Envia a senha (form) e recebe cookie de desbloqueio. |
-| `GET` | `/api/v1/docs/:id` | Metadados (requer `Authorization: Bearer <token>`). |
-| `DELETE` | `/api/v1/docs/:id` | Deleta (requer token). |
+| `POST` | `/api/v1/docs` | Publish. Body = HTML (`Content-Type: text/html`) or JSON `{html,slug?,password?}`. Headers: `x-slug`, `x-password`, `x-agent-name`. |
+| `GET` | `/d/:id` | View (serves the HTML, or the password gate). |
+| `POST` | `/d/:id/unlock` | Submit the password (form) and receive an unlock cookie. |
+| `GET` | `/api/v1/docs/:id` | Metadata (requires `Authorization: Bearer <token>`). |
+| `DELETE` | `/api/v1/docs/:id` | Delete (requires token). |
 
-Limite de 2 MB por artefato. CORS liberado nos endpoints `/api`.
+Configurable size limit (default 2 MB, via `MAX_UPLOAD_MB`). CORS enabled on the `/api` endpoints.
 
 ```bash
 curl -X POST https://share.fellipe.dev/api/v1/docs \
-  -H 'content-type: text/html' -H 'x-slug: meu-report' \
+  -H 'content-type: text/html' -H 'x-slug: my-report' \
   --data-binary @report.html
 ```
 
-## Desenvolvimento
+## For AI agents
+
+Want an AI agent (Claude Code, etc.) to bring up **your own** instance on its own? Point it
+to **[`AGENT_INSTALL_GUIDE.md`](AGENT_INSTALL_GUIDE.md)** — an imperative, step-by-step
+runbook with the exact commands to provision everything on Cloudflare (KV, secret, deploy,
+custom domain, nameserver migration, redirect removal) and the known pitfalls
+(token permissions, KV consistency, DNS cache). The skill at
+[`skill/share/`](skill/share/SKILL.md) teaches the agent to **use** the CLI once installed.
+
+## Deploy your own
+
+You need a Cloudflare account (the Free plan covers everything) and
+[`wrangler`](https://developers.cloudflare.com/workers/wrangler/) authenticated.
+Prefer to have an agent do it? See [For AI agents](#for-ai-agents).
 
 ```bash
+git clone <this-repo> && cd share
 bun install
-bun run dev            # wrangler dev local (KV simulado), http://localhost:8787
-bun run test:e2e       # e2e contra localhost:8787
-# e2e contra produção:
-bun run scripts/e2e.ts https://share.fellipe.dev
-```
 
-## Deploy (Cloudflare)
-
-```bash
 cd worker
-wrangler kv namespace create DOCS          # já feito; id em wrangler.jsonc
+cp wrangler.jsonc.example wrangler.jsonc     # then fill in YOUR values
+
+# 1. Create the KV and paste the id into wrangler.jsonc (kv_namespaces[0].id):
+wrangler kv namespace create DOCS
+
+# 2. Set the cookie-signing secret (stays out of the repo):
 echo "$(openssl rand -hex 32)" | wrangler secret put SESSION_SECRET
+
+# 3. Set PUBLIC_BASE_URL in wrangler.jsonc (your domain or the workers.dev one).
+#    (Optional) uncomment "routes" to use a custom domain.
+
+# 4. Deploy:
 wrangler deploy
 ```
 
-Config em `worker/wrangler.jsonc`. `worker/.dev.vars` sobrescreve vars só no dev local.
+Point the CLI to your instance: `share config --api=https://your-instance`
+(or `export SHARE_API_URL=https://your-instance`).
 
-## Domínio `share.fellipe.dev` (ativo ✅)
+### Configuration (variables)
 
-O domínio já está configurado e servindo. O que foi feito:
+| Variable | Where | Default | What |
+| --- | --- | --- | --- |
+| `PUBLIC_BASE_URL` | worker `vars` | `http://localhost:8787` | Public URL that builds the links |
+| `EXPIRY_DAYS` | worker `vars` | `15` | Artifact expiration window |
+| `MAX_UPLOAD_MB` | worker `vars` | `2` | Maximum size per artifact (MB) |
+| `SESSION_SECRET` | worker **secret** | (dev fallback) | HMAC for the unlock cookies |
+| `SHARE_API_URL` | CLI env | `DEFAULT_API_URL` | API url used by the CLI |
 
-1. **Zona `fellipe.dev` criada na Cloudflare** (plano Free) e ativada — nameservers
-   `michelle.ns.cloudflare.com` / `nero.ns.cloudflare.com`.
-2. **Nameservers trocados na GoDaddy** (de `ns09/ns10.domaincontrol.com` para os da
-   Cloudflare). Isso desativou o forwarding `fellipe.dev → fellipe.me`.
-3. **Redirect removido**: os 2 registros `A` de forwarding da GoDaddy foram deletados
-   da zona. O TXT `_atproto` (handle do Bluesky) foi **preservado**.
-4. **Custom domain no Worker**: `routes` com `custom_domain: true` em `wrangler.jsonc`
-   + `wrangler deploy`. A Cloudflare criou o registro de `share.fellipe.dev` e emitiu o
-   certificado TLS automaticamente.
+Deploy-specific (not env vars — they live in your `wrangler.jsonc`): the worker `name`,
+`kv_namespaces[].id`, and the custom domain `routes`.
 
-O `workers.dev` segue ativo como fallback. Para redeploy: `cd worker && wrangler deploy`.
+### Custom domain (optional)
 
-> Observação: o apex `fellipe.dev` (sem `share.`) deixou de redirecionar e ficou sem
-> registro — aponte-o para onde quiser quando decidir.
+To serve on your own domain, the zone must be in your Cloudflare account
+(nameservers pointing to Cloudflare). Then uncomment the `routes` block in
+`wrangler.jsonc` with your hostname and run `wrangler deploy` — Cloudflare creates the
+record and issues the TLS certificate automatically.
 
-## Notas de segurança
+## Development
 
-- Senhas: PBKDF2-SHA256 (100k iterações, salt aleatório). Nunca armazenadas em claro.
-- Desbloqueio: cookie `HttpOnly`, `Secure` (em HTTPS), `SameSite=Lax`, com escopo de path
-  no próprio documento, assinado por HMAC-SHA256 com `SESSION_SECRET`.
-- Artefatos são HTML arbitrário com scripts inline — isolados por `no-store` e sem cookies
-  de API acessíveis via JS. Para produção séria, sirva os artefatos num domínio separado.
+```bash
+bun install
+cd worker && cp wrangler.jsonc.example wrangler.jsonc && cp .dev.vars.example .dev.vars && cd ..
+bun run dev            # local wrangler dev (simulated KV), http://localhost:8787
+bun run test:e2e       # e2e against localhost:8787
+# e2e against another instance:
+bun run scripts/e2e.ts https://your-instance
+```
 
-## Nota sobre consistência (Cloudflare KV)
+## Security notes
 
-O KV é **eventualmente consistente**: uma leitura feita poucos segundos após a escrita,
-a partir de um PoP diferente do que gravou, pode devolver 404 por até ~60s. Na prática
-(publicar e abrir o link segundos depois, na mesma região) a leitura é consistente. É o
-tradeoff aceito pela stack mais simples + TTL nativo para a expiração de 15 dias. Se algum
-dia precisar de leitura forte imediata, troque o storage por Durable Objects ou D1.
+- Passwords: PBKDF2-SHA256 (100k iterations, random salt). Never stored in plaintext.
+- Unlock: `HttpOnly` cookie, `Secure` (over HTTPS), `SameSite=Lax`, scoped to the path
+  of the document itself, signed with HMAC-SHA256 using `SESSION_SECRET`.
+- Artifacts are arbitrary HTML with inline scripts — isolated via `no-store` and with no API
+  cookies accessible via JS. For serious production use, serve artifacts on a separate domain.
+
+## Consistency note (Cloudflare KV)
+
+KV is **eventually consistent**: a read done a few seconds after the write,
+from a PoP different from the one that wrote it, may return 404 for up to ~60s. In practice
+(publishing and opening the link seconds later, in the same region) the read is consistent. It's the
+tradeoff accepted for the simplest stack + native TTL for the 15-day expiration. If you ever
+need immediate strong reads, swap the storage for Durable Objects or D1.
+
+## License
+
+[MIT](LICENSE) © Fellipe Pinheiro

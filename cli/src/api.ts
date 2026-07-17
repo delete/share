@@ -1,4 +1,4 @@
-// Cliente HTTP fino para a API do Worker.
+// Thin HTTP client for the Worker API.
 
 export interface PublishResult {
   id: string;

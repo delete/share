@@ -1,10 +1,10 @@
-// Utilitários de crypto usando a Web Crypto API (disponível no runtime dos Workers).
+// Crypto utilities using the Web Crypto API (available in the Workers runtime).
 
 const encoder = new TextEncoder();
 
 const B62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
-/** Gera um id curto e URL-safe (base62) a partir de bytes aleatórios. */
+/** Generates a short, URL-safe (base62) id from random bytes. */
 export function randomId(length = 8): string {
   const bytes = crypto.getRandomValues(new Uint8Array(length));
   let out = "";
@@ -12,7 +12,7 @@ export function randomId(length = 8): string {
   return out;
 }
 
-/** Token de gerenciamento (usado para deletar/inspecionar o doc). Hex de 256 bits. */
+/** Management token (used to delete/inspect the doc). 256-bit hex. */
 export function randomToken(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
   return [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -39,7 +39,7 @@ export interface PasswordHash {
 
 const PBKDF2_ITERATIONS = 100_000;
 
-/** Deriva um hash PBKDF2-SHA256 da senha com salt aleatório. */
+/** Derives a PBKDF2-SHA256 hash of the password with a random salt. */
 export async function hashPassword(password: string): Promise<PasswordHash> {
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const bits = await deriveBits(password, salt, PBKDF2_ITERATIONS);
@@ -50,7 +50,7 @@ export async function hashPassword(password: string): Promise<PasswordHash> {
   };
 }
 
-/** Verifica uma senha contra um hash armazenado, em tempo constante. */
+/** Verifies a password against a stored hash, in constant time. */
 export async function verifyPassword(password: string, stored: PasswordHash): Promise<boolean> {
   const salt = fromBase64(stored.salt);
   const bits = await deriveBits(password, salt, stored.iterations);
@@ -69,14 +69,14 @@ function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
   return diff === 0;
 }
 
-/** Assina `${id}.${exp}` com HMAC-SHA256 para a cookie de desbloqueio. */
+/** Signs `${id}.${exp}` with HMAC-SHA256 for the unlock cookie. */
 export async function signUnlock(id: string, exp: number, secret: string): Promise<string> {
   const payload = `${id}.${exp}`;
   const mac = await hmac(payload, secret);
   return `${payload}.${mac}`;
 }
 
-/** Valida a cookie de desbloqueio; devolve true se assinatura confere e não expirou. */
+/** Validates the unlock cookie; returns true if the signature matches and it hasn't expired. */
 export async function verifyUnlock(value: string, id: string, secret: string, now: number): Promise<boolean> {
   const parts = value.split(".");
   if (parts.length !== 3) return false;

@@ -1,0 +1,237 @@
+# Installation guide for AI agents
+
+Runbook for an AI agent (Claude Code, etc.) to provision its own instance of
+**Share** on Cloudflare, end to end. Written imperatively: follow it in order,
+verify each step before moving on. Placeholders in `UPPERCASE`.
+
+> Target audience: an agent with shell access (`bash`), `bun`, `wrangler` and (optionally)
+> the Cloudflare dashboard via browser automation when the API lacks permission.
+
+---
+
+## 0. Project context
+
+- **Stack**: TypeScript/Bun CLI (`cli/`) + Cloudflare Worker (`worker/`) with **KV**.
+- **Storage**: KV with native TTL handles artifact expiration (`EXPIRY_DAYS`).
+- **No database, no frontend build.** Deploy = `wrangler deploy`.
+- Deploy-specific config lives in `worker/wrangler.jsonc` (gitignored; copy it from
+  `worker/wrangler.jsonc.example`). Secrets via `wrangler secret` (never in a file).
+
+## 1. Prerequisites — check before anything else
+
+```bash
+bun --version            # must exist
+wrangler --version       # or: bunx wrangler
+wrangler whoami          # must be authenticated; note the Account ID
+```
+
+- If `wrangler whoami` is not logged in: ask the user to run `wrangler login`
+  (it's interactive, opens the browser — the agent can't do it on its own).
+- Note the **Account ID** returned; several commands need it.
+
+## 2. Install dependencies and validate locally
+
+```bash
+bun install
+cd worker
+cp wrangler.jsonc.example wrangler.jsonc
+cp .dev.vars.example .dev.vars
+cd ..
+# bring up the Worker locally (KV simulated by Miniflare) and test:
+bun run dev &                       # http://localhost:8787
+sleep 6
+bun run scripts/e2e.ts http://localhost:8787   # expect: 28/28
+pkill -f "wrangler dev"
+```
+
+If all 28 checks pass, the code is healthy. Proceed to the deploy.
+
+## 3. Create the KV namespace
+
+```bash
+cd worker
+wrangler kv namespace create DOCS
+```
+
+- Copy the returned `id` and paste it into `worker/wrangler.jsonc` → `kv_namespaces[0].id`
+  (replace `YOUR_KV_NAMESPACE_ID`).
+
+## 4. Set the session secret
+
+```bash
+echo "$(openssl rand -hex 32)" | wrangler secret put SESSION_SECRET
+```
+
+- This creates the Worker (if it doesn't exist) and injects the secret. Never write this value
+  into any file in the repo.
+
+## 5. Adjust variables and deploy
+
+In `worker/wrangler.jsonc`, set:
+
+- `name`: the Worker name (e.g. `share`).
+- `vars.PUBLIC_BASE_URL`: the final public URL. On the first deploy, if you don't have a
+  domain yet, use the `workers.dev` URL (see below) — you can redeploy later.
+- `vars.EXPIRY_DAYS` (default 15) and `vars.MAX_UPLOAD_MB` (default 2), if you want to change them.
+
+```bash
+wrangler deploy
+```
+
+- The output already prints the `workers.dev` URL (e.g. `share.YOUR-SUBDOMAIN.workers.dev`) —
+  that's your `PUBLIC_BASE_URL` when you're not using a custom domain.
+
+- If `PUBLIC_BASE_URL` doesn't match the real URL yet, adjust it in `wrangler.jsonc` and
+  `wrangler deploy` again.
+
+## 6. Verify the deploy
+
+```bash
+BASE=https://YOUR-URL
+curl -s $BASE/health                    # {"ok":true,"service":"..."}
+bun run scripts/e2e.ts $BASE            # expect: 28/28
+```
+
+Point the CLI at the instance:
+
+```bash
+share config --api=https://YOUR-URL      # or: export SHARE_API_URL=https://YOUR-URL
+```
+
+**If you only want workers.dev, stop here — it's live.** The sections below are for a
+custom domain.
+
+---
+
+## 7. (Optional) Custom domain
+
+Goal: serve at `share.YOUR-DOMAIN.com`. The domain's zone **must be in your
+Cloudflare account**.
+
+> The steps below use raw Cloudflare API calls. Authenticate them with a Cloudflare API
+> token — portable across operating systems (no scraping of wrangler's config file, whose
+> path differs per OS). Create one at **dash → My Profile → API Tokens** (Zone:Read +
+> DNS:Edit for your zone), then export it once:
+>
+> ```bash
+> export CLOUDFLARE_API_TOKEN=YOUR_CLOUDFLARE_API_TOKEN   # wrangler also reads this var
+> ```
+
+### 7a. Is the zone already on Cloudflare?
+
+```bash
+curl -s "https://api.cloudflare.com/client/v4/zones?name=YOUR-DOMAIN.com" \
+  -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"
+```
+
+- If it returns a zone with `"status":"active"`, skip to **7d**.
+- If it doesn't exist, go to **7b**.
+
+### 7b. Add the zone (create a site)
+
+> ⚠️ The wrangler OAuth token usually **does NOT have permission to create a zone**
+> (`com.cloudflare.api.account.zone.create`). In that case, creating via the API fails with
+> "Authentication error" / "Requires permission". Do it through the **dashboard**:
+
+1. Cloudflare dashboard → **Add a site** → type `YOUR-DOMAIN.com` → **Free** plan.
+2. Cloudflare scans the DNS and gives you **2 nameservers** (e.g. `xxx.ns.cloudflare.com`).
+   Note both of them.
+
+(An agent with browser automation — e.g. the `playwriter` skill — can do this
+flow in the dashboard: `Add a site` → type the domain → select Free → confirm →
+copy the nameservers on the "nameserver-directions" screen.)
+
+### 7c. Change the nameservers at the registrar
+
+At the domain's registrar (GoDaddy, Namecheap, etc.), change the nameservers to the **2
+from Cloudflare**. E.g. GoDaddy: DNS → Nameservers → "I'll use my own" → paste both → save.
+
+> This also **disables** any forwarding/redirect at the registrar — DNS is now
+> served by Cloudflare.
+
+Wait for the zone to become `active` (seconds to ~1h). Poll:
+
+```bash
+ZONE=YOUR_ZONE_ID
+for i in $(seq 1 120); do
+  # force a re-check when the NS propagate
+  curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$ZONE/activation_check" \
+    -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -o /dev/null
+  S=$(curl -s "https://api.cloudflare.com/client/v4/zones/$ZONE" \
+      -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" | grep -o '"status":"[a-z]*"' | head -1)
+  echo "[$i] $S"; echo "$S" | grep -q active && break; sleep 60
+done
+```
+
+### 7d. (Optional) Clean up inherited redirect records
+
+If the apex had forwarding (`A` records pointing to registrar IPs), they may have been
+imported. To stop the redirect, **delete only those `A` records**, preserving important
+records (e.g. `TXT _atproto` for a Bluesky handle, `MX`, verifications).
+
+> Deleting DNS via the API also requires a permission the OAuth token may not have
+> (same "Authentication error"). In that case, do it through the dashboard: DNS → Records →
+> select the forwarding `A` records → Delete.
+
+### 7e. Attach the custom domain to the Worker
+
+In `worker/wrangler.jsonc`, uncomment/edit:
+
+```jsonc
+"routes": [
+  { "pattern": "share.YOUR-DOMAIN.com", "custom_domain": true }
+],
+```
+
+And set `vars.PUBLIC_BASE_URL` to `https://share.YOUR-DOMAIN.com`. Then:
+
+```bash
+wrangler deploy
+```
+
+- Cloudflare creates the subdomain's DNS record and **issues the TLS certificate**
+  automatically (takes from seconds to a few minutes).
+
+### 7f. Verify the custom domain
+
+```bash
+BASE=https://share.YOUR-DOMAIN.com
+curl -s -o /dev/null -w "%{http_code}\n" $BASE/health   # expect 200 (after TLS)
+bun run scripts/e2e.ts $BASE                            # expect 28/28
+```
+
+- If **local DNS** doesn't resolve (stale cache), test at the edge without relying on the resolver:
+  ```bash
+  EDGE=$(dig +short A share.YOUR-DOMAIN.com @1.1.1.1 | head -1)
+  curl -s --resolve share.YOUR-DOMAIN.com:443:$EDGE https://share.YOUR-DOMAIN.com/health
+  ```
+
+---
+
+## 8. Known pitfalls (learned in practice)
+
+- **Token permissions**: the wrangler OAuth usually has workers/kv/routes, but **not**
+  `zone.create` or `dns_records.edit`. Creating a zone and editing DNS → **dashboard** (or browser
+  automation). Reading zone/DNS via the API works.
+- **KV is eventually consistent**: a read a few seconds after the write, from a different
+  PoP, can return 404 for up to ~60s. In normal use (publish → open later) it's consistent.
+  Don't treat this as a bug in a test that reads immediately after publishing.
+- **DNS cache (machine/router)**: it may hold onto the old NS delegation and return NXDOMAIN
+  even with the zone active. Work around it by pointing the resolver at `1.1.1.1`, or testing via
+  `curl --resolve` against the edge IP (see 7f). Don't confuse this with "the domain is down".
+- **zsh vs bash**: in scripts with `--resolve`, zsh does **not** word-split an unquoted
+  `$VAR`. Run these scripts with `bash`, or use explicit arrays/args.
+- **Worker name**: renaming the Worker creates a new one and orphans the old one; the custom domain
+  stays tied to the old one. To migrate: delete the old Worker (`wrangler delete --name OLD`)
+  and `wrangler deploy` the new one (KV is independent and the data persists).
+
+## 9. Final checklist
+
+- [ ] `wrangler whoami` authenticated
+- [ ] KV `DOCS` created and `id` in `wrangler.jsonc`
+- [ ] `SESSION_SECRET` set via `wrangler secret put`
+- [ ] `PUBLIC_BASE_URL` = real public URL
+- [ ] `wrangler deploy` with no errors
+- [ ] `curl /health` = 200 and `scripts/e2e.ts` = 28/28 on the final URL
+- [ ] CLI pointed at the instance (`share config --api=...`)
+- [ ] (optional) custom domain active with TLS and e2e 28/28

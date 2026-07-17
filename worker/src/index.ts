@@ -14,6 +14,7 @@ export interface Env {
   PUBLIC_BASE_URL: string;
   EXPIRY_DAYS: string;
   SESSION_SECRET?: string;
+  MAX_UPLOAD_MB?: string;
 }
 
 interface DocRecord {
@@ -25,7 +26,7 @@ interface DocRecord {
   password?: PasswordHash | null;
 }
 
-const MAX_BYTES = 2 * 1024 * 1024; // 2 MB por artefato
+const DEFAULT_MAX_UPLOAD_MB = 2; // configurable via the MAX_UPLOAD_MB var
 const RESERVED = new Set(["api", "d", "health", "favicon.ico", "robots.txt", "index.html", ""]);
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
 
@@ -48,11 +49,11 @@ export default {
         return new Response("User-agent: *\nDisallow: /d/\n", { headers: { "content-type": "text/plain" } });
       }
 
-      // API: publicar
+      // API: publish
       if (path === "/api/v1/docs" && method === "POST") {
         return cors(await publish(request, env));
       }
-      // API: metadados / deletar
+      // API: metadata / delete
       const apiMatch = path.match(/^\/api\/v1\/docs\/([^/]+)$/);
       if (apiMatch) {
         const id = decodeURIComponent(apiMatch[1]);
@@ -60,7 +61,7 @@ export default {
         if (method === "DELETE") return cors(await remove(id, request, env));
       }
 
-      // Visualização pública
+      // Public view
       const viewMatch = path.match(/^\/d\/([^/]+)$/);
       if (viewMatch && method === "GET") {
         return view(decodeURIComponent(viewMatch[1]), request, env);
@@ -70,7 +71,7 @@ export default {
         return unlock(decodeURIComponent(unlockMatch[1]), request, env);
       }
 
-      return html(errorPage(404, "Não encontrado", "Esta página não existe."), 404);
+      return html(errorPage(404, "Not found", "This page does not exist."), 404);
     } catch (err) {
       console.error("unhandled", err);
       return json({ error: "internal_error" }, 500);
@@ -90,7 +91,7 @@ async function publish(request: Request, env: Env): Promise<Response> {
   if (ctype.includes("application/json")) {
     const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
     if (!body || typeof body.html !== "string") {
-      return json({ error: "invalid_body", message: "Envie { html, slug?, password?, agentName? }." }, 400);
+      return json({ error: "invalid_body", message: "Send { html, slug?, password?, agentName? }." }, 400);
     }
     htmlBody = body.html;
     slug = typeof body.slug === "string" ? body.slug : undefined;
@@ -104,21 +105,22 @@ async function publish(request: Request, env: Env): Promise<Response> {
   }
 
   if (!htmlBody.trim()) {
-    return json({ error: "empty", message: "O HTML está vazio." }, 400);
+    return json({ error: "empty", message: "The HTML is empty." }, 400);
   }
-  if (new Blob([htmlBody]).size > MAX_BYTES) {
-    return json({ error: "too_large", message: "Máximo de 2 MB por artefato." }, 413);
+  const limit = maxBytes(env);
+  if (new Blob([htmlBody]).size > limit) {
+    return json({ error: "too_large", message: `Maximum ${limit / (1024 * 1024)} MB per artifact.` }, 413);
   }
 
-  // Resolve o id (slug customizado ou aleatório).
+  // Resolve the id (custom slug or random).
   let id: string;
   if (slug != null && slug !== "") {
     const norm = slug.trim().toLowerCase();
     if (!SLUG_RE.test(norm) || RESERVED.has(norm)) {
-      return json({ error: "invalid_slug", message: "Slug deve ter 3-40 chars: a-z, 0-9, hífen." }, 400);
+      return json({ error: "invalid_slug", message: "Slug must be 3-40 chars: a-z, 0-9, hyphen." }, 400);
     }
     if (await env.DOCS.get(key(norm))) {
-      return json({ error: "slug_taken", message: `O slug "${norm}" já está em uso.` }, 409);
+      return json({ error: "slug_taken", message: `Slug "${norm}" is already taken.` }, 409);
     }
     id = norm;
   } else {
@@ -153,7 +155,7 @@ async function publish(request: Request, env: Env): Promise<Response> {
 
 async function view(id: string, request: Request, env: Env): Promise<Response> {
   const record = await load(env, id);
-  if (!record) return html(errorPage(404, "Indisponível", "Este documento expirou ou não existe."), 404);
+  if (!record) return html(errorPage(404, "Unavailable", "This document has expired or does not exist."), 404);
 
   if (record.password) {
     const cookies = parseCookies(request.headers.get("cookie"));
@@ -167,7 +169,7 @@ async function view(id: string, request: Request, env: Env): Promise<Response> {
 
 async function unlock(id: string, request: Request, env: Env): Promise<Response> {
   const record = await load(env, id);
-  if (!record) return html(errorPage(404, "Indisponível", "Este documento expirou ou não existe."), 404);
+  if (!record) return html(errorPage(404, "Unavailable", "This document has expired or does not exist."), 404);
   if (!record.password) return redirect(`/d/${id}`);
 
   const form = await request.formData();
@@ -241,6 +243,10 @@ function baseUrl(env: Env): string {
 function expiryDays(env: Env): number {
   const n = Number(env.EXPIRY_DAYS);
   return Number.isFinite(n) && n > 0 ? n : 15;
+}
+function maxBytes(env: Env): number {
+  const mb = Number(env.MAX_UPLOAD_MB);
+  return (Number.isFinite(mb) && mb > 0 ? mb : DEFAULT_MAX_UPLOAD_MB) * 1024 * 1024;
 }
 function secret(env: Env): string {
   return env.SESSION_SECRET || "dev-insecure-secret-change-me";

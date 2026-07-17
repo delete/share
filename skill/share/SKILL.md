@@ -1,108 +1,108 @@
 ---
 name: share
-description: Publica artefatos HTML e devolve um link ao vivo (share.fellipe.dev). Use sempre que gerar um artefato HTML — relatório, dashboard, mockup, gráfico, slide — e quiser compartilhar um link visualizável no navegador, opcionalmente protegido por senha e com slug customizado. Os links expiram em 15 dias.
+description: Publishes HTML artifacts and returns a live shareable link (reference instance share.fellipe.dev). Use whenever you generate an HTML artifact — report, dashboard, mockup, chart, slide — and want a browser-viewable link, optionally protected with a password and a custom slug. Links expire in 15 days.
 ---
 
-# Share — compartilhar artefatos HTML
+# Share — share HTML artifacts
 
-Sempre que você produzir um artefato HTML autossuficiente (um único arquivo, com CSS/JS
-inline) e o usuário quiser **ver o resultado no navegador** ou **mandar um link pra alguém**,
-publique-o com o CLI `share` e devolva o link.
+Whenever you produce a self-contained HTML artifact (a single file, with inline CSS/JS)
+and the user wants to **see the result in the browser** or **send someone a link**,
+publish it with the `share` CLI and return the link.
 
-## Quando usar
+## When to use
 
-- "publica isso", "me dá um link", "compartilha", "quero ver no navegador"
-- Depois de gerar dashboard, relatório, landing page, gráfico (Chart.js/D3/Plotly), slide, mockup
-- Quando um resultado HTML fica melhor visto renderizado do que como código
+- "publish this", "give me a link", "share it", "I want to see it in the browser"
+- After generating a dashboard, report, landing page, chart (Chart.js/D3/Plotly), slide, mockup
+- When an HTML result is better viewed rendered than as code
 
-Não use para arquivos que fazem parte do código do projeto — apenas para artefatos
-que valem um link temporário.
+Don't use it for files that are part of the project's codebase — only for artifacts
+that are worth a temporary link.
 
-## Setup (uma vez)
+## Setup (one time)
 
-O CLI roda com Bun. Se `share` não estiver no PATH, chame direto:
+The CLI runs on Bun. If `share` isn't on your PATH, call it directly:
 
 ```bash
-bun /caminho/para/share/cli/bin/share.ts <comando>
+bun /path/to/share/cli/bin/share.ts <command>
 ```
 
-Ou instale global uma vez:
+Or install it globally once:
 
 ```bash
-bun link            # dentro de share/cli, expõe o binário `share`
+bun link            # inside share/cli, exposes the `share` binary
 ```
 
-A API padrão é `https://share.fellipe.dev` (já embutida). Para apontar para outra:
-`share config --api=https://sua-url` ou `export SHARE_API_URL=...`.
+The default API is `https://share.fellipe.dev` (already built in). To point at another one:
+`share config --api=https://your-url` or `export SHARE_API_URL=...`.
 
-## Uso
+## Usage
 
-**Publicar um arquivo e mostrar o link:**
+**Publish a file and show the link:**
 
 ```bash
-share publish relatorio.html
+share publish report.html
 ```
 
-**Publicar direto de stdin** (útil quando você acabou de gerar o HTML):
+**Publish straight from stdin** (handy right after you generate the HTML):
 
 ```bash
-cat > /tmp/artefato.html <<'HTML'
-<!doctype html><html><head><meta charset="utf-8"><title>Vendas</title></head>
-<body><h1>Vendas Q3</h1><!-- ... --></body></html>
+cat > /tmp/artifact.html <<'HTML'
+<!doctype html><html><head><meta charset="utf-8"><title>Sales</title></head>
+<body><h1>Q3 Sales</h1><!-- ... --></body></html>
 HTML
-share publish /tmp/artefato.html
+share publish /tmp/artifact.html
 ```
 
-**Slug customizado** (URL amigável, precisa ser único, 3-40 chars a-z/0-9/hífen):
+**Custom slug** (friendly URL, must be unique, 3-40 chars a-z/0-9/hyphen):
 
 ```bash
-share publish dash.html --slug=vendas-q3
-# → https://share.fellipe.dev/d/vendas-q3
+share publish dash.html --slug=sales-q3
+# → https://share.fellipe.dev/d/sales-q3
 ```
 
-**Proteger com senha** (a página pede a senha antes de mostrar o conteúdo):
+**Protect with a password** (the page asks for the password before showing the content):
 
 ```bash
-share publish confidencial.html --slug=diretoria --password=segredo-forte
+share publish confidential.html --slug=board --password=strong-secret
 ```
 
-**Saída em JSON** (para capturar `url`/`id`/`token` programaticamente):
+**JSON output** (to capture `url`/`id`/`token` programmatically):
 
 ```bash
 share publish dash.html --json
 ```
 
-## Gerenciar
+## Manage
 
 ```bash
-share list              # lista o que você publicou e quanto falta pra expirar
-share info <id>         # metadados (tamanho, criação, expiração)
-share open <id|url>     # abre no navegador
-share delete <id>       # remove antes da expiração (usa o token guardado)
+share list              # lists what you've published and how long until it expires
+share info <id>         # metadata (size, creation, expiration)
+share open <id|url>     # opens in the browser
+share delete <id>       # removes it before expiration (uses the stored token)
 ```
 
-Os tokens de gerenciamento ficam em `~/.share/config.json` — não precisa guardá-los.
+Management tokens are kept in `~/.share/config.json` — you don't need to hold onto them.
 
-## Regras importantes
+## Important rules
 
-1. **Sempre devolva o link** (`url`) ao usuário depois de publicar — é o entregável.
-2. O HTML deve ser **autossuficiente**: CSS e JS inline, imagens como data URI. Scripts
-   inline são preservados (SPA, Chart.js, D3, Plotly funcionam).
-3. Limite de **2 MB** por artefato.
-4. Todo artefato **expira em 15 dias** — avise se for algo que precisa durar.
-5. Para conteúdo sensível, use `--password`. Sem senha, qualquer um com o link vê.
-6. Se um `--slug` já existir, o comando falha com "slug já em uso" — escolha outro.
+1. **Always return the link** (`url`) to the user after publishing — it's the deliverable.
+2. The HTML must be **self-contained**: inline CSS and JS, images as data URIs. Inline
+   scripts are preserved (SPA, Chart.js, D3, Plotly all work).
+3. **2 MB** limit per artifact.
+4. Every artifact **expires in 15 days** — warn the user if it needs to last longer.
+5. For sensitive content, use `--password`. Without a password, anyone with the link can see it.
+6. If a `--slug` already exists, the command fails with "slug already in use" — pick another.
 
-## Exemplo de fluxo completo
+## Full flow example
 
 ```bash
-# 1. Gere o artefato (você escreve o HTML)
-#    ... cria /tmp/dashboard.html ...
+# 1. Generate the artifact (you write the HTML)
+#    ... creates /tmp/dashboard.html ...
 
-# 2. Publique
-share publish /tmp/dashboard.html --slug=dashboard-cliente --json
+# 2. Publish it
+share publish /tmp/dashboard.html --slug=client-dashboard --json
 
-# 3. Devolva o link ao usuário:
-#    "Pronto! Seu dashboard está em https://share.fellipe.dev/d/dashboard-cliente
-#     (expira em 15 dias)."
+# 3. Return the link to the user:
+#    "Done! Your dashboard is at https://share.fellipe.dev/d/client-dashboard
+#     (expires in 15 days)."
 ```

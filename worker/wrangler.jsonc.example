@@ -1,0 +1,36 @@
+{
+  // Copy to wrangler.jsonc and fill in YOUR values:
+  //   cp wrangler.jsonc.example wrangler.jsonc
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "share",
+  "main": "src/index.ts",
+  "compatibility_date": "2024-11-06",
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    // Public URL that builds the links returned by the API.
+    // Use your custom domain (https://share.your-domain.com) or the workers.dev one.
+    "PUBLIC_BASE_URL": "http://localhost:8787",
+    // Artifact expiration window, in days.
+    "EXPIRY_DAYS": "15",
+    // Maximum size per artifact, in MB.
+    "MAX_UPLOAD_MB": "2"
+  },
+  // Keep true to get <worker>.<your-subdomain>.workers.dev.
+  "workers_dev": true,
+  // Custom domain (optional). The zone must be in your Cloudflare account.
+  // Uncomment and replace with your domain:
+  // "routes": [
+  //   { "pattern": "share.your-domain.com", "custom_domain": true }
+  // ],
+  // Create the KV and paste the id: `wrangler kv namespace create DOCS`
+  "kv_namespaces": [
+    {
+      "binding": "DOCS",
+      "id": "YOUR_KV_NAMESPACE_ID"
+    }
+  ]
+  // Set the secret (it does not go into the file):
+  //   echo "$(openssl rand -hex 32)" | wrangler secret put SESSION_SECRET
+}

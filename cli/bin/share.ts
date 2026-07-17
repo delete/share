@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// share — publique artefatos HTML e receba um link ao vivo.
+// share — publish HTML artifacts and get a live link.
 import { publish, getMeta, remove } from "../src/api";
 import {
   loadConfig,
@@ -30,7 +30,7 @@ function parse(argv: string[]): Parsed {
       } else {
         const name = a.slice(2);
         const next = argv[i + 1];
-        // flags booleanas conhecidas não consomem o próximo argumento
+        // known boolean flags don't consume the next argument
         if (["open", "json", "help", "version"].includes(name) || next == null || next.startsWith("--")) {
           flags[name] = true;
         } else {
@@ -56,7 +56,6 @@ async function main() {
 
   switch (cmd) {
     case "publish":
-    case "share":
       return cmdPublish(_.slice(1), flags);
     case "list":
     case "ls":
@@ -71,7 +70,7 @@ async function main() {
     case "config":
       return cmdConfig(flags);
     default:
-      die(`Comando desconhecido: ${cmd}\nRode "share help".`);
+      die(`Unknown command: ${cmd}\nRun "share help".`);
   }
 }
 
@@ -82,18 +81,18 @@ async function cmdPublish(args: string[], flags: Parsed["flags"]) {
   let html: string;
   if (file && file !== "-") {
     const f = Bun.file(file);
-    if (!(await f.exists())) die(`Arquivo não encontrado: ${file}`);
+    if (!(await f.exists())) die(`File not found: ${file}`);
     html = await f.text();
   } else {
-    if (process.stdin.isTTY) die("Passe um arquivo .html ou envie HTML via stdin.\nEx.: share publish pagina.html");
+    if (process.stdin.isTTY) die("Pass a .html file or send HTML via stdin.\nEx.: share publish page.html");
     html = await Bun.stdin.text();
   }
-  if (!html.trim()) die("O HTML está vazio.");
+  if (!html.trim()) die("The HTML is empty.");
 
   const password = str(flags.password);
   const slug = str(flags.slug);
 
-  info(c.dim(`Publicando em ${apiUrl} ...`));
+  info(c.dim(`Publishing to ${apiUrl} ...`));
   let result;
   try {
     result = await publish(apiUrl, html, { slug, password, agentName: str(flags.agent) });
@@ -113,10 +112,10 @@ async function cmdPublish(args: string[], flags: Parsed["flags"]) {
   if (flags.json) {
     console.log(JSON.stringify(result, null, 2));
   } else {
-    ok(`Publicado! Expira em ${humanDuration(result.expiresAt)}.`);
+    ok(`Published! Expires in ${humanDuration(result.expiresAt)}.`);
     console.log("\n  " + c.bold(c.cyan(result.url)) + "\n");
-    if (result.protected) info(c.dim("  🔒 protegido por senha"));
-    info(c.dim(`  id: ${result.id}   ·   token guardado em ~/.share/config.json`));
+    if (result.protected) info(c.dim("  🔒 password protected"));
+    info(c.dim(`  id: ${result.id}   ·   token saved in ~/.share/config.json`));
   }
 
   if (flags.open) await openInBrowser(result.url);
@@ -125,24 +124,24 @@ async function cmdPublish(args: string[], flags: Parsed["flags"]) {
 async function cmdList() {
   const cfg = loadConfig();
   const ids = Object.keys(cfg.docs);
-  if (ids.length === 0) return info(c.dim("Nenhum documento publicado ainda."));
+  if (ids.length === 0) return info(c.dim("No documents published yet."));
 
-  info(c.bold("Seus documentos:\n"));
+  info(c.bold("Your documents:\n"));
   for (const id of ids) {
     const d = cfg.docs[id];
     const left = humanDuration(d.expiresAt);
     const lock = d.protected ? c.yellow(" 🔒") : "";
-    const status = left === "expirado" ? c.dim("(expirado)") : c.dim(`expira em ${left}`);
+    const status = left === "expired" ? c.dim("(expired)") : c.dim(`expires in ${left}`);
     console.log(`  ${c.cyan(d.url)}${lock}  ${status}`);
   }
 }
 
 async function cmdDelete(id: string | undefined, flags: Parsed["flags"]) {
-  if (!id) die("Uso: share delete <id>");
+  if (!id) die("Usage: share delete <id>");
   const apiUrl = resolveApiUrl(str(flags.api));
   const cfg = loadConfig();
   const token = str(flags.token) || cfg.docs[id]?.token;
-  if (!token) die(`Sem token para "${id}". Passe --token=<token>.`);
+  if (!token) die(`No token for "${id}". Pass --token=<token>.`);
 
   try {
     await remove(apiUrl, id, token);
@@ -150,15 +149,15 @@ async function cmdDelete(id: string | undefined, flags: Parsed["flags"]) {
     die((e as Error).message);
   }
   forgetDoc(id);
-  ok(`Documento "${id}" deletado.`);
+  ok(`Document "${id}" deleted.`);
 }
 
 async function cmdInfo(id: string | undefined, flags: Parsed["flags"]) {
-  if (!id) die("Uso: share info <id>");
+  if (!id) die("Usage: share info <id>");
   const apiUrl = resolveApiUrl(str(flags.api));
   const cfg = loadConfig();
   const token = str(flags.token) || cfg.docs[id]?.token;
-  if (!token) die(`Sem token para "${id}". Passe --token=<token>.`);
+  if (!token) die(`No token for "${id}". Pass --token=<token>.`);
 
   let meta;
   try {
@@ -170,11 +169,11 @@ async function cmdInfo(id: string | undefined, flags: Parsed["flags"]) {
 }
 
 async function cmdOpen(idOrUrl: string | undefined) {
-  if (!idOrUrl) die("Uso: share open <id|url>");
+  if (!idOrUrl) die("Usage: share open <id|url>");
   const cfg = loadConfig();
   const url = idOrUrl.startsWith("http") ? idOrUrl : cfg.docs[idOrUrl]?.url || `${resolveApiUrl()}/d/${idOrUrl}`;
   await openInBrowser(url);
-  ok(`Abrindo ${url}`);
+  ok(`Opening ${url}`);
 }
 
 async function cmdConfig(flags: Parsed["flags"]) {
@@ -183,42 +182,42 @@ async function cmdConfig(flags: Parsed["flags"]) {
   if (newApi) {
     cfg.apiUrl = newApi.replace(/\/$/, "");
     saveConfig(cfg);
-    ok(`API url definida: ${cfg.apiUrl}`);
+    ok(`API url set: ${cfg.apiUrl}`);
     return;
   }
   console.log(JSON.stringify({ apiUrl: cfg.apiUrl, docs: Object.keys(cfg.docs).length }, null, 2));
-  info(c.dim(`\nAltere com: share config --api=${DEFAULT_API_URL}`));
+  info(c.dim(`\nChange it with: share config --api=${DEFAULT_API_URL}`));
 }
 
 function usage() {
-  console.log(`${c.bold("share")} ${c.dim("v" + VERSION)} — compartilhe artefatos HTML na hora.
+  console.log(`${c.bold("share")} ${c.dim("v" + VERSION)} — share HTML artifacts instantly.
 
-${c.bold("USO")}
-  share publish <arquivo.html> [opções]
-  cat pagina.html | share publish -
+${c.bold("USAGE")}
+  share publish <file.html> [options]
+  cat page.html | share publish -
 
-${c.bold("COMANDOS")}
-  publish <arquivo>   Publica um HTML e devolve o link ao vivo
-  list                Lista os documentos que você publicou
-  info <id>           Mostra metadados de um documento
-  open <id|url>       Abre o documento no navegador
-  delete <id>         Deleta um documento (usa o token guardado)
-  config [--api=url]  Mostra ou define a API url
+${c.bold("COMMANDS")}
+  publish <file>      Publish an HTML file and return the live link
+  list                List the documents you've published
+  info <id>           Show metadata for a document
+  open <id|url>       Open the document in the browser
+  delete <id>         Delete a document (uses the stored token)
+  config [--api=url]  Show or set the API url
 
-${c.bold("OPÇÕES de publish")}
-  --slug=<slug>       Slug customizado (a-z, 0-9, hífen; 3-40 chars)
-  --password=<senha>  Protege a visualização com senha
-  --open              Abre no navegador após publicar
-  --json              Saída em JSON
-  --agent=<nome>      Rótulo do agente (default: share-cli)
-  --api=<url>         Sobrescreve a API url
+${c.bold("publish OPTIONS")}
+  --slug=<slug>       Custom slug (a-z, 0-9, hyphen; 3-40 chars)
+  --password=<pass>   Protect the view with a password
+  --open              Open in the browser after publishing
+  --json              JSON output
+  --agent=<name>      Agent label (default: share-cli)
+  --api=<url>         Override the API url
 
-${c.bold("EXEMPLOS")}
-  share publish relatorio.html --open
-  share publish dash.html --slug=vendas-q3 --password=segredo
-  echo '<h1>oi</h1>' | share publish -
+${c.bold("EXAMPLES")}
+  share publish report.html --open
+  share publish dash.html --slug=sales-q3 --password=secret
+  echo '<h1>hi</h1>' | share publish -
 
-${c.dim("Artefatos expiram automaticamente em 15 dias.")}`);
+${c.dim("Artifacts expire automatically after 15 days.")}`);
 }
 
 main().catch((e) => die((e as Error).message));

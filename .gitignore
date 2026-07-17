@@ -1,5 +1,7 @@
 node_modules/
 .wrangler/
+# Config específica do deploy (KV id, domínio) — cada um copia do .example
+worker/wrangler.jsonc
 worker/.dev.vars
 dist/
 *.log

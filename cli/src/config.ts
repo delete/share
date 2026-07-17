@@ -1,11 +1,13 @@
-// Persistência local em ~/.share/config.json: guarda a API url e os tokens
-// dos documentos publicados (para permitir delete/info depois).
+// Local persistence in ~/.share/config.json: stores the API url and the tokens
+// of published documents (so delete/info work later).
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 
-// Custom domain de produção. Fallback: https://share.pinheiro-llip.workers.dev
-export const DEFAULT_API_URL = "https://share.fellipe.dev";
+// Neutral default for the open source project: points to a local Worker.
+// Each user points to THEIR instance via `share config --api=https://...`
+// or `export SHARE_API_URL=https://...`.
+export const DEFAULT_API_URL = "http://localhost:8787";
 
 export interface DocEntry {
   url: string;
@@ -39,7 +41,7 @@ export function saveConfig(cfg: Config): void {
   writeFileSync(FILE, JSON.stringify(cfg, null, 2) + "\n", { mode: 0o600 });
 }
 
-/** API url efetiva: flag > env > config salva > default. */
+/** Effective API url: flag > env > saved config > default. */
 export function resolveApiUrl(flag?: string): string {
   const raw = flag || process.env.SHARE_API_URL || loadConfig().apiUrl || DEFAULT_API_URL;
   return raw.replace(/\/$/, "");

@@ -1,7 +1,7 @@
 {
   "name": "@share/cli",
   "version": "0.1.0",
-  "description": "Publique artefatos HTML e receba um link ao vivo. Feito para Claude Code e humanos.",
+  "description": "Publish HTML artifacts and get a live link. Built for Claude Code and humans.",
   "type": "module",
   "bin": {
     "share": "bin/share.ts"

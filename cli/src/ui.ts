@@ -1,4 +1,4 @@
-// Helpers de saída no terminal (cores só quando é TTY).
+// Terminal output helpers (colors only when TTY).
 const useColor = process.stdout.isTTY && process.env.NO_COLOR == null;
 const wrap = (code: string) => (s: string) => (useColor ? `\x1b[${code}m${s}\x1b[0m` : s);
 
@@ -26,20 +26,20 @@ export function die(msg: string): never {
   process.exit(1);
 }
 
-/** Abre uma URL no navegador padrão do SO. */
+/** Opens a URL in the OS default browser. */
 export async function openInBrowser(url: string): Promise<void> {
   const cmd =
     process.platform === "darwin" ? ["open", url] : process.platform === "win32" ? ["cmd", "/c", "start", "", url] : ["xdg-open", url];
   try {
     Bun.spawn(cmd, { stdout: "ignore", stderr: "ignore" });
   } catch {
-    /* silencioso: abrir no browser é best-effort */
+    /* silent: opening the browser is best-effort */
   }
 }
 
 export function humanDuration(toISO: string): string {
   const ms = new Date(toISO).getTime() - Date.now();
-  if (ms <= 0) return "expirado";
+  if (ms <= 0) return "expired";
   const days = Math.floor(ms / 86400000);
   const hours = Math.floor((ms % 86400000) / 3600000);
   if (days > 0) return `${days}d ${hours}h`;

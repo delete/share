@@ -2,7 +2,9 @@
   "name": "share",
   "version": "0.1.0",
   "private": true,
-  "description": "Compartilhamento instantâneo de artefatos HTML com integração para agentes de IA (Claude Code).",
+  "description": "Instant HTML artifact sharing with AI-agent integration (Claude Code).",
+  "license": "MIT",
+  "author": "Fellipe Pinheiro",
   "workspaces": [
     "cli",
     "worker"

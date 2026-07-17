@@ -1,5 +1,5 @@
-// Páginas HTML servidas pelo Worker (landing, gate de senha, erros).
-// Sem dependências: template strings puras.
+// HTML pages served by the Worker (landing, password gate, errors).
+// No dependencies: plain template strings.
 
 function escapeHtml(s: string): string {
   return s
@@ -41,26 +41,26 @@ const SHELL_STYLE = `
 
 export function passwordPage(id: string, opts: { error?: boolean } = {}): string {
   return `<!doctype html>
-<html lang="pt-br"><head>
+<html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Protegido por senha · Share</title>
+<title>Password protected · Share</title>
 <style>${SHELL_STYLE}</style>
 </head><body>
 <form class="card" method="post" action="/d/${encodeURIComponent(id)}/unlock">
-  <h1>🔒 Documento protegido</h1>
-  <p>Este artefato exige uma senha para ser visualizado.</p>
-  ${opts.error ? `<div class="err">Senha incorreta. Tente novamente.</div>` : ""}
-  <label for="p">Senha</label>
+  <h1>🔒 Protected document</h1>
+  <p>This artifact requires a password to be viewed.</p>
+  ${opts.error ? `<div class="err">Incorrect password. Please try again.</div>` : ""}
+  <label for="p">Password</label>
   <input id="p" name="password" type="password" autofocus autocomplete="current-password" required>
-  <button type="submit">Desbloquear</button>
-  <div class="brand">Compartilhado com <a href="/">Share</a></div>
+  <button type="submit">Unlock</button>
+  <div class="brand">Shared with <a href="/">Share</a></div>
 </form>
 </body></html>`;
 }
 
 export function errorPage(code: number, title: string, message: string): string {
   return `<!doctype html>
-<html lang="pt-br"><head>
+<html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${code} · Share</title>
 <style>${SHELL_STYLE}</style>
@@ -75,9 +75,9 @@ export function errorPage(code: number, title: string, message: string): string 
 
 export function landingPage(baseUrl: string, expiryDays: number): string {
   return `<!doctype html>
-<html lang="pt-br"><head>
+<html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Share — compartilhe artefatos HTML na hora</title>
+<title>Share — share HTML artifacts instantly</title>
 <style>${SHELL_STYLE}
   body { place-items: start center; padding-top: 8vh; }
   .card { max-width: 560px; }
@@ -89,16 +89,16 @@ export function landingPage(baseUrl: string, expiryDays: number): string {
 </head><body>
 <div class="card">
   <h1>📄 Share</h1>
-  <p>Publique qualquer artefato HTML e receba um link ao vivo em segundos.</p>
+  <p>Publish any HTML artifact and get a live link in seconds.</p>
   <ul>
-    <li>Visualização pública por link — sem conta</li>
-    <li>Proteção por senha e slug customizado</li>
-    <li>Expiração automática em ${expiryDays} dias</li>
-    <li>Integração nativa com Claude Code via CLI</li>
+    <li>Public link view — no account</li>
+    <li>Password protection and custom slug</li>
+    <li>Automatic expiration in ${expiryDays} days</li>
+    <li>Native Claude Code integration via CLI</li>
   </ul>
-  <pre>bunx @share/cli publish ./relatorio.html
+  <pre>bunx @share/cli publish ./report.html
 # → ${baseUrl}/d/aB3xY9kQ</pre>
-  <div class="brand">Feito para agentes de IA e humanos.</div>
+  <div class="brand">Built for AI agents and humans.</div>
 </div>
 </body></html>`;
 }
