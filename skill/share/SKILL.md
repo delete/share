@@ -7,7 +7,11 @@ description: Publishes HTML artifacts and returns a live shareable link (referen
 
 Whenever you produce a self-contained HTML artifact (a single file, with inline CSS/JS)
 and the user wants to **see the result in the browser** or **send someone a link**,
-publish it with the `share` CLI and return the link.
+publish it and return the link.
+
+This skill ships helper scripts next to this file, in `scripts/`. **Call the scripts** —
+don't hand-roll `curl`/CLI commands. Paths below are relative to this skill's directory;
+use the absolute path if you invoke them from elsewhere.
 
 ## When to use
 
@@ -20,69 +24,34 @@ that are worth a temporary link.
 
 ## Setup (one time)
 
-The CLI runs on Bun. If `share` isn't on your PATH, call it directly:
+Point the scripts at the Share instance you want to publish to:
 
 ```bash
-bun /path/to/share/cli/bin/share.ts <command>
+export SHARE_API_URL=https://your-instance
 ```
 
-Or install it globally once:
+The reference instance is `https://share.fellipe.dev`. If unset, the scripts fall back to
+`~/.share/config.json` (written by `share config --api=`) and then `http://localhost:8787`.
+
+## Publish
+
+`scripts/publish.sh` takes a file (or `-` for stdin) and prints the live URL:
 
 ```bash
-bun link            # inside share/cli, exposes the `share` binary
+scripts/publish.sh report.html                          # publish a file
+cat page.html | scripts/publish.sh -                    # publish from stdin
+scripts/publish.sh dash.html --slug sales-q3            # custom slug (a-z, 0-9, hyphen; 3-40)
+scripts/publish.sh secret.html --password strong-secret # password-protected view
+scripts/publish.sh dash.html --json                     # full JSON (url, id, token)
 ```
 
-Point the CLI at your instance once: `share config --api=https://your-instance` (or
-`export SHARE_API_URL=https://your-instance`). The public reference instance is
-`https://share.fellipe.dev`.
+Return the printed `url` to the user — it's the deliverable.
 
-## Usage
-
-**Publish a file and show the link:**
+## Delete (optional)
 
 ```bash
-share publish report.html
+scripts/delete.sh <id> <token>    # id + token come from `publish.sh --json`
 ```
-
-**Publish straight from stdin** (handy right after you generate the HTML):
-
-```bash
-cat > /tmp/artifact.html <<'HTML'
-<!doctype html><html><head><meta charset="utf-8"><title>Sales</title></head>
-<body><h1>Q3 Sales</h1><!-- ... --></body></html>
-HTML
-share publish /tmp/artifact.html
-```
-
-**Custom slug** (friendly URL, must be unique, 3-40 chars a-z/0-9/hyphen):
-
-```bash
-share publish dash.html --slug=sales-q3
-# → https://share.fellipe.dev/d/sales-q3
-```
-
-**Protect with a password** (the page asks for the password before showing the content):
-
-```bash
-share publish confidential.html --slug=board --password=strong-secret
-```
-
-**JSON output** (to capture `url`/`id`/`token` programmatically):
-
-```bash
-share publish dash.html --json
-```
-
-## Manage
-
-```bash
-share list              # lists what you've published and how long until it expires
-share info <id>         # metadata (size, creation, expiration)
-share open <id|url>     # opens in the browser
-share delete <id>       # removes it before expiration (uses the stored token)
-```
-
-Management tokens are kept in `~/.share/config.json` — you don't need to hold onto them.
 
 ## Important rules
 
@@ -92,18 +61,14 @@ Management tokens are kept in `~/.share/config.json` — you don't need to hold 
 3. **2 MB** limit per artifact.
 4. Every artifact **expires in 15 days** — warn the user if it needs to last longer.
 5. For sensitive content, use `--password`. Without a password, anyone with the link can see it.
-6. If a `--slug` already exists, the command fails with "slug already in use" — pick another.
+6. If a `--slug` already exists, publishing fails with "slug already taken" — pick another.
 
 ## Full flow example
 
 ```bash
-# 1. Generate the artifact (you write the HTML)
-#    ... creates /tmp/dashboard.html ...
-
-# 2. Publish it
-share publish /tmp/dashboard.html --slug=client-dashboard --json
-
-# 3. Return the link to the user:
-#    "Done! Your dashboard is at https://share.fellipe.dev/d/client-dashboard
-#     (expires in 15 days)."
+# 1. Generate the artifact (you write the HTML to a file), e.g. /tmp/dashboard.html
+# 2. Publish it:
+scripts/publish.sh /tmp/dashboard.html --slug client-dashboard
+# → prints: https://share.fellipe.dev/d/client-dashboard
+# 3. Return that link to the user (mention it expires in 15 days).
 ```

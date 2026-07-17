@@ -98,13 +98,16 @@ share config --api=https://YOUR-URL      # or: export SHARE_API_URL=https://YOUR
 Install the agent instructions so agents can drive the CLI in future sessions:
 
 ```bash
-# Claude Code (skill):
-mkdir -p ~/.claude/skills/share && cp skill/share/SKILL.md ~/.claude/skills/share/SKILL.md
-# Codex (reads AGENTS.md):
+# Claude Code (skill folder = SKILL.md + scripts/):
+mkdir -p ~/.claude/skills && cp -r skill/share ~/.claude/skills/share
+# Codex (reads AGENTS.md; keep the repo so scripts/ stays reachable):
 mkdir -p ~/.codex && cat skill/share/SKILL.md >> ~/.codex/AGENTS.md
 # pi (reads ~/.pi/agent/AGENTS.md):
 mkdir -p ~/.pi/agent && cat skill/share/SKILL.md >> ~/.pi/agent/AGENTS.md
 ```
+
+The publish/delete scripts (`skill/share/scripts/`) read the instance from `SHARE_API_URL`
+or `~/.share/config.json`, so `share config --api=...` above already points them at your instance.
 
 **If you only want workers.dev, stop here — it's live.** The sections below are for a
 custom domain (fully optional).
