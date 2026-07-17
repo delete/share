@@ -11,7 +11,7 @@ import { passwordPage, errorPage, landingPage } from "./views";
 
 export interface Env {
   DOCS: KVNamespace;
-  PUBLIC_BASE_URL: string;
+  PUBLIC_BASE_URL?: string;
   EXPIRY_DAYS: string;
   SESSION_SECRET?: string;
   MAX_UPLOAD_MB?: string;
@@ -40,7 +40,7 @@ export default {
       if (method === "OPTIONS") return cors(new Response(null, { status: 204 }));
 
       if (path === "/" && method === "GET") {
-        return html(landingPage(baseUrl(env), expiryDays(env)));
+        return html(landingPage(baseUrl(env, request), expiryDays(env)));
       }
       if (path === "/health") {
         return json({ ok: true, service: "share" });
@@ -143,7 +143,7 @@ async function publish(request: Request, env: Env): Promise<Response> {
   return json(
     {
       id,
-      url: `${baseUrl(env)}/d/${id}`,
+      url: `${baseUrl(env, request)}/d/${id}`,
       token: record.token,
       protected: !!record.password,
       expiresAt: new Date(record.expiresAt).toISOString(),
@@ -195,7 +195,7 @@ async function getMeta(id: string, request: Request, env: Env): Promise<Response
   if (!authorized(request, record.token)) return json({ error: "unauthorized" }, 401);
   return json({
     id,
-    url: `${baseUrl(env)}/d/${id}`,
+    url: `${baseUrl(env, request)}/d/${id}`,
     protected: !!record.password,
     agentName: record.agentName ?? null,
     createdAt: new Date(record.createdAt).toISOString(),
@@ -237,8 +237,10 @@ function authorized(request: Request, token: string): boolean {
   return bearer === token || header === token;
 }
 
-function baseUrl(env: Env): string {
-  return (env.PUBLIC_BASE_URL || "http://localhost:8787").replace(/\/$/, "");
+function baseUrl(env: Env, request: Request): string {
+  // PUBLIC_BASE_URL is optional: when unset, derive it from the incoming request
+  // so the free workers.dev URL works with zero config (no custom domain needed).
+  return (env.PUBLIC_BASE_URL || new URL(request.url).origin).replace(/\/$/, "");
 }
 function expiryDays(env: Env): number {
   const n = Number(env.EXPIRY_DAYS);

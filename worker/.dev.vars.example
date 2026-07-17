@@ -1,5 +1,7 @@
 # Copy to .dev.vars (used only by `wrangler dev` locally; stays out of git):
 #   cp .dev.vars.example .dev.vars
-PUBLIC_BASE_URL=http://localhost:8787
 SESSION_SECRET=dev-secret-local-only
 MAX_UPLOAD_MB=2
+# PUBLIC_BASE_URL is optional (links are derived from the request host if unset).
+# Uncomment to force one locally:
+# PUBLIC_BASE_URL=http://localhost:8787

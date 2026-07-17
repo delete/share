@@ -48,17 +48,30 @@ share/
 # install the global `share` binary (once)
 cd cli && bun link
 
-share publish report.html                       # publishes and shows the link
-share publish dash.html --slug=sales-q3 --open     # slug + opens in the browser
-share publish secret.html --password=my-secret        # password-protected
-cat page.html | share publish -                   # via stdin
-share list                                          # your documents + expiration
-share info <id>                                     # metadata
-share delete <id>                                   # remove before expiration
-share config --api=https://your-url                 # change the API url
+share publish report.html                        # publishes and shows the link
+share publish dash.html --slug=sales-q3 --open   # slug + opens in the browser
+share publish secret.html --password=my-secret   # password-protected
+cat page.html | share publish -                  # via stdin
+share list                                       # your documents + expiration
+share info <id>                                  # metadata
+share delete <id>                                # remove before expiration
+share config --api=https://your-url              # change the API url
 ```
 
 Without `bun link`, call it directly: `bun cli/bin/share.ts <command>`.
+
+## Install the Claude Code skill
+
+The skill teaches Claude Code (and compatible agents) to publish artifacts with the `share`
+CLI and hand back the link. Install it globally:
+
+```bash
+mkdir -p ~/.claude/skills/share
+cp skill/share/SKILL.md ~/.claude/skills/share/SKILL.md
+```
+
+Then point the CLI at your instance once (`share config --api=https://your-instance`); the
+agent picks up the skill on the next Claude Code start.
 
 ## API
 
@@ -91,6 +104,7 @@ custom domain, nameserver migration, redirect removal) and the known pitfalls
 
 You need a Cloudflare account (the Free plan covers everything) and
 [`wrangler`](https://developers.cloudflare.com/workers/wrangler/) authenticated.
+**No custom domain needed** — Cloudflare gives you a free `*.workers.dev` URL out of the box.
 Prefer to have an agent do it? See [For AI agents](#for-ai-agents).
 
 ```bash
@@ -98,7 +112,7 @@ git clone <this-repo> && cd share
 bun install
 
 cd worker
-cp wrangler.jsonc.example wrangler.jsonc     # then fill in YOUR values
+cp wrangler.jsonc.example wrangler.jsonc
 
 # 1. Create the KV and paste the id into wrangler.jsonc (kv_namespaces[0].id):
 wrangler kv namespace create DOCS
@@ -106,21 +120,25 @@ wrangler kv namespace create DOCS
 # 2. Set the cookie-signing secret (stays out of the repo):
 echo "$(openssl rand -hex 32)" | wrangler secret put SESSION_SECRET
 
-# 3. Set PUBLIC_BASE_URL in wrangler.jsonc (your domain or the workers.dev one).
-#    (Optional) uncomment "routes" to use a custom domain.
-
-# 4. Deploy:
+# 3. Deploy — prints your free URL: share.<your-subdomain>.workers.dev
 wrangler deploy
 ```
 
-Point the CLI to your instance: `share config --api=https://your-instance`
-(or `export SHARE_API_URL=https://your-instance`).
+That's it — the deployed URL works immediately. Point the CLI at it:
+
+```bash
+share config --api=https://share.<your-subdomain>.workers.dev
+# or: export SHARE_API_URL=https://share.<your-subdomain>.workers.dev
+```
+
+Links are built from the request host by default, so the workers.dev URL needs no extra
+config. `PUBLIC_BASE_URL` is optional — set it only to pin a canonical URL (e.g. a custom domain).
 
 ### Configuration (variables)
 
 | Variable | Where | Default | What |
 | --- | --- | --- | --- |
-| `PUBLIC_BASE_URL` | worker `vars` | `http://localhost:8787` | Public URL that builds the links |
+| `PUBLIC_BASE_URL` | worker `vars` | request host | Optional. Pins a canonical public URL for the links |
 | `EXPIRY_DAYS` | worker `vars` | `15` | Artifact expiration window |
 | `MAX_UPLOAD_MB` | worker `vars` | `2` | Maximum size per artifact (MB) |
 | `SESSION_SECRET` | worker **secret** | (dev fallback) | HMAC for the unlock cookies |
@@ -131,7 +149,8 @@ Deploy-specific (not env vars — they live in your `wrangler.jsonc`): the worke
 
 ### Custom domain (optional)
 
-To serve on your own domain, the zone must be in your Cloudflare account
+Skip this unless you own a domain and want a branded URL — the free workers.dev URL works
+fine on its own. To serve on your own domain, the zone must be in your Cloudflare account
 (nameservers pointing to Cloudflare). Then uncomment the `routes` block in
 `wrangler.jsonc` with your hostname and run `wrangler deploy` — Cloudflare creates the
 record and issues the TLS certificate automatically.

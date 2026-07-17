@@ -70,19 +70,16 @@ echo "$(openssl rand -hex 32)" | wrangler secret put SESSION_SECRET
 In `worker/wrangler.jsonc`, set:
 
 - `name`: the Worker name (e.g. `share`).
-- `vars.PUBLIC_BASE_URL`: the final public URL. On the first deploy, if you don't have a
-  domain yet, use the `workers.dev` URL (see below) — you can redeploy later.
 - `vars.EXPIRY_DAYS` (default 15) and `vars.MAX_UPLOAD_MB` (default 2), if you want to change them.
+- `vars.PUBLIC_BASE_URL` is **optional** — leave it unset and links are derived from the
+  request host, so the free `workers.dev` URL just works. Set it only to pin a canonical URL.
 
 ```bash
 wrangler deploy
 ```
 
-- The output already prints the `workers.dev` URL (e.g. `share.YOUR-SUBDOMAIN.workers.dev`) —
-  that's your `PUBLIC_BASE_URL` when you're not using a custom domain.
-
-- If `PUBLIC_BASE_URL` doesn't match the real URL yet, adjust it in `wrangler.jsonc` and
-  `wrangler deploy` again.
+- The output prints your free `workers.dev` URL (e.g. `share.YOUR-SUBDOMAIN.workers.dev`).
+  **No custom domain is required** — this URL is fully functional on its own.
 
 ## 6. Verify the deploy
 
@@ -98,8 +95,15 @@ Point the CLI at the instance:
 share config --api=https://YOUR-URL      # or: export SHARE_API_URL=https://YOUR-URL
 ```
 
+Install the Claude Code skill so agents can drive the CLI in future sessions:
+
+```bash
+mkdir -p ~/.claude/skills/share
+cp skill/share/SKILL.md ~/.claude/skills/share/SKILL.md
+```
+
 **If you only want workers.dev, stop here — it's live.** The sections below are for a
-custom domain.
+custom domain (fully optional).
 
 ---
 
@@ -230,8 +234,9 @@ bun run scripts/e2e.ts $BASE                            # expect 28/28
 - [ ] `wrangler whoami` authenticated
 - [ ] KV `DOCS` created and `id` in `wrangler.jsonc`
 - [ ] `SESSION_SECRET` set via `wrangler secret put`
-- [ ] `PUBLIC_BASE_URL` = real public URL
-- [ ] `wrangler deploy` with no errors
+- [ ] `wrangler deploy` with no errors (free workers.dev URL is enough)
 - [ ] `curl /health` = 200 and `scripts/e2e.ts` = 28/28 on the final URL
 - [ ] CLI pointed at the instance (`share config --api=...`)
+- [ ] Claude Code skill installed (`~/.claude/skills/share/SKILL.md`)
+- [ ] (optional) `PUBLIC_BASE_URL` set to pin a canonical URL
 - [ ] (optional) custom domain active with TLS and e2e 28/28

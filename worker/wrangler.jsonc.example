@@ -9,17 +9,19 @@
     "enabled": true
   },
   "vars": {
-    // Public URL that builds the links returned by the API.
-    // Use your custom domain (https://share.your-domain.com) or the workers.dev one.
-    "PUBLIC_BASE_URL": "http://localhost:8787",
     // Artifact expiration window, in days.
     "EXPIRY_DAYS": "15",
     // Maximum size per artifact, in MB.
     "MAX_UPLOAD_MB": "2"
+    // PUBLIC_BASE_URL is OPTIONAL. If omitted, links are derived from the
+    // incoming request host — so the free workers.dev URL just works, no config.
+    // Set it only to force a canonical URL (e.g. a custom domain):
+    // "PUBLIC_BASE_URL": "https://share.your-domain.com"
   },
-  // Keep true to get <worker>.<your-subdomain>.workers.dev.
+  // The free Cloudflare URL: <worker>.<your-subdomain>.workers.dev. No domain needed.
   "workers_dev": true,
-  // Custom domain (optional). The zone must be in your Cloudflare account.
+  // Custom domain — OPTIONAL, and only if you own a domain whose zone is in your
+  // Cloudflare account. Most users can skip this and use the workers.dev URL above.
   // Uncomment and replace with your domain:
   // "routes": [
   //   { "pattern": "share.your-domain.com", "custom_domain": true }
