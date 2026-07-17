@@ -80,24 +80,24 @@ mkdir -p ~/.claude/skills
 cp -r skill/share ~/.claude/skills/share
 ```
 
-**Codex** — it reads `AGENTS.md`. Append the instructions to your global config (or a repo's
-own `AGENTS.md`):
+**Codex** — also loads skills (same `SKILL.md` + `scripts/` layout). Install the folder into
+`~/.codex/skills/`:
 
 ```bash
-mkdir -p ~/.codex
-cat skill/share/SKILL.md >> ~/.codex/AGENTS.md
+mkdir -p ~/.codex/skills
+cp -r skill/share ~/.codex/skills/share
 ```
 
-**pi** — same, globally at `~/.pi/agent/AGENTS.md`:
+**pi** — reads `AGENTS.md` (no skills folder), globally at `~/.pi/agent/AGENTS.md`:
 
 ```bash
 mkdir -p ~/.pi/agent
 cat skill/share/SKILL.md >> ~/.pi/agent/AGENTS.md
 ```
 
-For Codex/pi the scripts aren't bundled with `AGENTS.md`, so keep this repo cloned — the
-skill calls `scripts/publish.sh` relative to its folder (use the absolute path, or symlink
-the scripts onto your `PATH`). Restart the agent to pick up the instructions.
+Restart the agent to pick up the skill. For **pi** the scripts aren't bundled with
+`AGENTS.md`, so keep this repo cloned — the skill calls `scripts/publish.sh` relative to its
+folder (use the absolute path, or symlink the scripts onto your `PATH`).
 
 ## API
 

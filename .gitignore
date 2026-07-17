@@ -1,8 +1,9 @@
 node_modules/
 .wrangler/
-# Config específica do deploy (KV id, domínio) — cada um copia do .example
+# Deploy-specific config (KV id, domain) — copy it from the .example
 worker/wrangler.jsonc
 worker/.dev.vars
 dist/
 *.log
 .DS_Store
+.claude/settings.local.json

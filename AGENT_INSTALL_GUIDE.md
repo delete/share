@@ -100,8 +100,8 @@ Install the agent instructions so agents can drive the CLI in future sessions:
 ```bash
 # Claude Code (skill folder = SKILL.md + scripts/):
 mkdir -p ~/.claude/skills && cp -r skill/share ~/.claude/skills/share
-# Codex (reads AGENTS.md; keep the repo so scripts/ stays reachable):
-mkdir -p ~/.codex && cat skill/share/SKILL.md >> ~/.codex/AGENTS.md
+# Codex (also uses skills):
+mkdir -p ~/.codex/skills && cp -r skill/share ~/.codex/skills/share
 # pi (reads ~/.pi/agent/AGENTS.md):
 mkdir -p ~/.pi/agent && cat skill/share/SKILL.md >> ~/.pi/agent/AGENTS.md
 ```
@@ -244,6 +244,6 @@ bun run scripts/e2e.ts $BASE                            # expect 28/28
 - [ ] `wrangler deploy` with no errors (free workers.dev URL is enough)
 - [ ] `curl /health` = 200 and `scripts/e2e.ts` = 28/28 on the final URL
 - [ ] CLI pointed at the instance (`share config --api=...`)
-- [ ] Agent instructions installed (Claude Code skill and/or Codex/pi `AGENTS.md`)
+- [ ] Agent instructions installed (Claude Code / Codex skill, or pi `AGENTS.md`)
 - [ ] (optional) `PUBLIC_BASE_URL` set to pin a canonical URL
 - [ ] (optional) custom domain active with TLS and e2e 28/28
