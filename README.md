@@ -1,7 +1,7 @@
 # Share
 
 Instant HTML artifact sharing with integration for AI agents
-(Claude Code first). Publish an HTML file and get a **live link**
+(Claude Code, Codex, and pi). Publish an HTML file and get a **live link**
 in seconds — optionally password-protected and with a custom slug. Everything expires
 automatically after **15 days**.
 
@@ -21,7 +21,7 @@ handles expiration).
 | Password-protected view, no account | `--password=...` → PBKDF2 gate + signed cookie (HMAC) |
 | Custom slug | `--slug=my-slug` |
 | 15-day expiration | Cloudflare KV native TTL |
-| Claude Code integration | skill at [`skill/share/SKILL.md`](skill/share/SKILL.md) |
+| AI agent integration | Claude Code, Codex, pi — see [`skill/share/`](skill/share/) |
 | Manage (delete/inspect) | per-document token, stored in `~/.share` |
 
 ## Structure
@@ -60,18 +60,36 @@ share config --api=https://your-url              # change the API url
 
 Without `bun link`, call it directly: `bun cli/bin/share.ts <command>`.
 
-## Install the Claude Code skill
+## AI agent integration
 
-The skill teaches Claude Code (and compatible agents) to publish artifacts with the `share`
-CLI and hand back the link. Install it globally:
+Teach your coding agent to publish artifacts with the `share` CLI and hand back the link.
+First point the CLI at your instance once (`share config --api=https://your-instance`), then
+install the instructions for your agent:
+
+**Claude Code** — install the skill:
 
 ```bash
 mkdir -p ~/.claude/skills/share
 cp skill/share/SKILL.md ~/.claude/skills/share/SKILL.md
 ```
 
-Then point the CLI at your instance once (`share config --api=https://your-instance`); the
-agent picks up the skill on the next Claude Code start.
+**Codex** — it reads `AGENTS.md`. Append the instructions to your global config (or to a
+repo's own `AGENTS.md`):
+
+```bash
+mkdir -p ~/.codex
+cat skill/share/SKILL.md >> ~/.codex/AGENTS.md
+```
+
+**pi** — it reads `AGENTS.md` too, globally at `~/.pi/agent/AGENTS.md`:
+
+```bash
+mkdir -p ~/.pi/agent
+cat skill/share/SKILL.md >> ~/.pi/agent/AGENTS.md
+```
+
+Restart the agent so it picks up the new instructions. Any other `AGENTS.md`-aware agent
+works the same way — point it at [`skill/share/SKILL.md`](skill/share/SKILL.md).
 
 ## API
 
@@ -97,8 +115,9 @@ Want an AI agent (Claude Code, etc.) to bring up **your own** instance on its ow
 to **[`AGENT_INSTALL_GUIDE.md`](AGENT_INSTALL_GUIDE.md)** — an imperative, step-by-step
 runbook with the exact commands to provision everything on Cloudflare (KV, secret, deploy,
 custom domain, nameserver migration, redirect removal) and the known pitfalls
-(token permissions, KV consistency, DNS cache). The skill at
-[`skill/share/`](skill/share/SKILL.md) teaches the agent to **use** the CLI once installed.
+(token permissions, KV consistency, DNS cache). The single
+[`skill/share/SKILL.md`](skill/share/SKILL.md) teaches the agent to **use** the CLI once
+installed — see [AI agent integration](#ai-agent-integration) for the per-agent install.
 
 ## Deploy your own
 

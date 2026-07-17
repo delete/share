@@ -32,8 +32,9 @@ Or install it globally once:
 bun link            # inside share/cli, exposes the `share` binary
 ```
 
-The default API is `https://share.fellipe.dev` (already built in). To point at another one:
-`share config --api=https://your-url` or `export SHARE_API_URL=...`.
+Point the CLI at your instance once: `share config --api=https://your-instance` (or
+`export SHARE_API_URL=https://your-instance`). The public reference instance is
+`https://share.fellipe.dev`.
 
 ## Usage
 

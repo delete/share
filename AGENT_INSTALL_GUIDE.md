@@ -95,11 +95,15 @@ Point the CLI at the instance:
 share config --api=https://YOUR-URL      # or: export SHARE_API_URL=https://YOUR-URL
 ```
 
-Install the Claude Code skill so agents can drive the CLI in future sessions:
+Install the agent instructions so agents can drive the CLI in future sessions:
 
 ```bash
-mkdir -p ~/.claude/skills/share
-cp skill/share/SKILL.md ~/.claude/skills/share/SKILL.md
+# Claude Code (skill):
+mkdir -p ~/.claude/skills/share && cp skill/share/SKILL.md ~/.claude/skills/share/SKILL.md
+# Codex (reads AGENTS.md):
+mkdir -p ~/.codex && cat skill/share/SKILL.md >> ~/.codex/AGENTS.md
+# pi (reads ~/.pi/agent/AGENTS.md):
+mkdir -p ~/.pi/agent && cat skill/share/SKILL.md >> ~/.pi/agent/AGENTS.md
 ```
 
 **If you only want workers.dev, stop here — it's live.** The sections below are for a
@@ -237,6 +241,6 @@ bun run scripts/e2e.ts $BASE                            # expect 28/28
 - [ ] `wrangler deploy` with no errors (free workers.dev URL is enough)
 - [ ] `curl /health` = 200 and `scripts/e2e.ts` = 28/28 on the final URL
 - [ ] CLI pointed at the instance (`share config --api=...`)
-- [ ] Claude Code skill installed (`~/.claude/skills/share/SKILL.md`)
+- [ ] Agent instructions installed (Claude Code skill and/or Codex/pi `AGENTS.md`)
 - [ ] (optional) `PUBLIC_BASE_URL` set to pin a canonical URL
 - [ ] (optional) custom domain active with TLS and e2e 28/28

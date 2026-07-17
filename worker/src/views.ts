@@ -94,7 +94,7 @@ export function landingPage(baseUrl: string, expiryDays: number): string {
     <li>Public link view — no account</li>
     <li>Password protection and custom slug</li>
     <li>Automatic expiration in ${expiryDays} days</li>
-    <li>Native Claude Code integration via CLI</li>
+    <li>Works with Claude Code, Codex &amp; pi via CLI</li>
   </ul>
   <pre>bunx @share/cli publish ./report.html
 # → ${baseUrl}/d/aB3xY9kQ</pre>
