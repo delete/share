@@ -1,0 +1,30 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "share",
+  "main": "src/index.ts",
+  "compatibility_date": "2024-11-06",
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "PUBLIC_BASE_URL": "https://share.fellipe.dev",
+    "EXPIRY_DAYS": "15"
+  },
+  // Mantemos workers.dev ativo como fallback além do custom domain.
+  "workers_dev": true,
+  // Custom domain — zona fellipe.dev criada na Cloudflare (ativa após propagação dos NS).
+  "routes": [
+    { "pattern": "share.fellipe.dev", "custom_domain": true }
+  ],
+  // KV é o storage: TTL nativo cobre a expiração de 15 dias.
+  // Crie com `bun run --cwd worker kv:create` e cole o id abaixo.
+  "kv_namespaces": [
+    {
+      "binding": "DOCS",
+      "id": "b877e022ff73412dbf6ccaf7eff0db74"
+    }
+  ]
+  // SESSION_SECRET é um secret (não fica no arquivo):
+  //   echo "um-segredo-aleatorio-longo" | wrangler secret put SESSION_SECRET
+  // Em `wrangler dev` local existe um fallback de desenvolvimento.
+}

@@ -1,0 +1,17 @@
+{
+  "name": "@share/cli",
+  "version": "0.1.0",
+  "description": "Publique artefatos HTML e receba um link ao vivo. Feito para Claude Code e humanos.",
+  "type": "module",
+  "bin": {
+    "share": "bin/share.ts"
+  },
+  "scripts": {
+    "start": "bun run bin/share.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.5.0"
+  }
+}

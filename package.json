@@ -1,0 +1,16 @@
+{
+  "name": "share",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Compartilhamento instantâneo de artefatos HTML com integração para agentes de IA (Claude Code).",
+  "workspaces": [
+    "cli",
+    "worker"
+  ],
+  "scripts": {
+    "dev": "bun run --cwd worker dev",
+    "deploy": "bun run --cwd worker deploy",
+    "cli": "bun run --cwd cli start",
+    "test:e2e": "bun run scripts/e2e.ts"
+  }
+}
