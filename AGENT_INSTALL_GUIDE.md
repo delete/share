@@ -95,10 +95,13 @@ Point the CLI at the instance:
 share config --api=https://YOUR-URL      # or: export SHARE_API_URL=https://YOUR-URL
 ```
 
-Install the agent instructions so agents can drive the CLI in future sessions:
+Make the `share` CLI available and install the skill so agents can publish and manage
+(list/delete/info) in future sessions:
 
 ```bash
-# Claude Code (skill folder = SKILL.md + scripts/):
+cd cli && bun link       # exposes the global `share` binary (run from the repo)
+cd ..
+# Claude Code:
 mkdir -p ~/.claude/skills && cp -r skill/share ~/.claude/skills/share
 # Codex (also uses skills):
 mkdir -p ~/.codex/skills && cp -r skill/share ~/.codex/skills/share
@@ -106,8 +109,8 @@ mkdir -p ~/.codex/skills && cp -r skill/share ~/.codex/skills/share
 mkdir -p ~/.pi/agent && cat skill/share/SKILL.md >> ~/.pi/agent/AGENTS.md
 ```
 
-The publish/delete scripts (`skill/share/scripts/`) read the instance from `SHARE_API_URL`
-or `~/.share/config.json`, so `share config --api=...` above already points them at your instance.
+`share config --api=...` above already points the CLI at your instance (persisted in
+`~/.share/config.json`), which is what makes `share list`/`delete` work.
 
 **If you only want workers.dev, stop here — it's live.** The sections below are for a
 custom domain (fully optional).

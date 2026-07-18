@@ -36,7 +36,7 @@ share/
 ├── cli/              # `share` CLI (Bun)
 │   ├── bin/share.ts
 │   └── src/{api,config,ui}.ts
-├── skill/share/      # agent skill: SKILL.md + scripts/ (publish.sh, delete.sh)
+├── skill/share/      # agent skill (SKILL.md) — teaches the `share` CLI
 ├── scripts/e2e.ts    # end-to-end test (28 checks)
 ├── AGENT_INSTALL_GUIDE.md  # runbook for an AI agent to provision everything
 └── LICENSE           # MIT
@@ -62,42 +62,41 @@ Without `bun link`, call it directly: `bun cli/bin/share.ts <command>`.
 
 ## AI agent integration
 
-The agent publishes by calling the helper scripts in
-[`skill/share/scripts/`](skill/share/scripts/) (`publish.sh`, `delete.sh`) — self-contained,
-they only need `curl` and a target instance. The `SKILL.md` tells the agent when and how to
-call them. Point the scripts at your instance once:
+The agent publishes and manages artifacts with the **`share` CLI** (publish, list, delete,
+info, open); the skill's `SKILL.md` teaches it how. So the agent needs two things: the
+`share` CLI on its PATH, and the skill installed.
+
+Make the CLI available and point it at your instance:
 
 ```bash
-export SHARE_API_URL=https://your-instance   # or: share config --api=https://your-instance
+cd cli && bun link                         # exposes the global `share` binary
+share config --api=https://your-instance   # or: export SHARE_API_URL=https://your-instance
 ```
 
-Then install the instructions for your agent:
+Then install the skill for your agent:
 
-**Claude Code** — install the skill folder (SKILL.md + scripts):
+**Claude Code** — copy the skill folder:
 
 ```bash
 mkdir -p ~/.claude/skills
 cp -r skill/share ~/.claude/skills/share
 ```
 
-**Codex** — also loads skills (same `SKILL.md` + `scripts/` layout). Install the folder into
-`~/.codex/skills/`:
+**Codex** — also loads skills; copy the folder into `~/.codex/skills/`:
 
 ```bash
 mkdir -p ~/.codex/skills
 cp -r skill/share ~/.codex/skills/share
 ```
 
-**pi** — reads `AGENTS.md` (no skills folder), globally at `~/.pi/agent/AGENTS.md`:
+**pi** — reads `AGENTS.md`, globally at `~/.pi/agent/AGENTS.md`:
 
 ```bash
 mkdir -p ~/.pi/agent
 cat skill/share/SKILL.md >> ~/.pi/agent/AGENTS.md
 ```
 
-Restart the agent to pick up the skill. For **pi** the scripts aren't bundled with
-`AGENTS.md`, so keep this repo cloned — the skill calls `scripts/publish.sh` relative to its
-folder (use the absolute path, or symlink the scripts onto your `PATH`).
+Restart the agent to pick up the skill.
 
 ## API
 
@@ -123,9 +122,10 @@ Want an AI agent (Claude Code, etc.) to bring up **your own** instance on its ow
 to **[`AGENT_INSTALL_GUIDE.md`](AGENT_INSTALL_GUIDE.md)** — an imperative, step-by-step
 runbook with the exact commands to provision everything on Cloudflare (KV, secret, deploy,
 custom domain, nameserver migration, redirect removal) and the known pitfalls
-(token permissions, KV consistency, DNS cache). The [`skill/share/`](skill/share/) folder
-(`SKILL.md` + the `scripts/` it calls) teaches the agent to **publish** once installed —
-see [AI agent integration](#ai-agent-integration) for the per-agent install.
+(token permissions, KV consistency, DNS cache). The
+[`skill/share/SKILL.md`](skill/share/SKILL.md) teaches the agent to **publish and manage**
+via the `share` CLI once installed — see [AI agent integration](#ai-agent-integration) for
+the per-agent install.
 
 ## Deploy your own
 

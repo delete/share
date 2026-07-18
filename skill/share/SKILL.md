@@ -1,74 +1,69 @@
 ---
 name: share
-description: Publishes HTML artifacts and returns a live shareable link (reference instance share.fellipe.dev). Use whenever you generate an HTML artifact — report, dashboard, mockup, chart, slide — and want a browser-viewable link, optionally protected with a password and a custom slug. Links expire in 15 days.
+description: Publishes HTML artifacts and returns a live shareable link (reference instance share.fellipe.dev). Use whenever you generate an HTML artifact — report, dashboard, mockup, chart, slide — and want a browser-viewable link, optionally protected with a password and a custom slug. Also lists, inspects, and deletes what you've published. Links expire in 15 days.
 ---
 
-# Share — share HTML artifacts
+# Share — publish & manage HTML artifacts
 
 Whenever you produce a self-contained HTML artifact (a single file, with inline CSS/JS)
-and the user wants to **see the result in the browser** or **send someone a link**,
-publish it and return the link.
-
-This skill ships helper scripts next to this file, in `scripts/`. **Call the scripts** —
-don't hand-roll `curl`/CLI commands. Paths below are relative to this skill's directory;
-use the absolute path if you invoke them from elsewhere.
+and the user wants to **see it in the browser** or **send someone a link**, publish it with
+the `share` CLI and return the link. Use the same CLI to **manage** what you publish —
+list, inspect, and delete (it keeps a local record of your docs and their tokens, so you
+don't juggle tokens by hand).
 
 ## When to use
 
 - "publish this", "give me a link", "share it", "I want to see it in the browser"
 - After generating a dashboard, report, landing page, chart (Chart.js/D3/Plotly), slide, mockup
-- When an HTML result is better viewed rendered than as code
+- To manage what you've shared: "list my links", "delete that one", "is it still up?"
 
-Don't use it for files that are part of the project's codebase — only for artifacts
-that are worth a temporary link.
+Don't use it for files that are part of the project's codebase — only for artifacts worth a
+temporary link.
 
-## Setup (one time)
+## Setup (once)
 
-Point the scripts at the Share instance you want to publish to:
+The CLI is `share` (Bun). If it isn't on your PATH, run `bun link` inside `share/cli`, or call
+it directly as `bun /path/to/share/cli/bin/share.ts <command>`.
+
+Point it at the instance to publish to (persists in `~/.share/config.json`):
 
 ```bash
-export SHARE_API_URL=https://your-instance
+share config --api=https://your-instance   # or: export SHARE_API_URL=https://your-instance
 ```
 
-The reference instance is `https://share.fellipe.dev`. If unset, the scripts fall back to
-`~/.share/config.json` (written by `share config --api=`) and then `http://localhost:8787`.
+The public reference instance is `https://share.fellipe.dev`.
 
 ## Publish
 
-`scripts/publish.sh` takes a file (or `-` for stdin) and prints the live URL:
-
 ```bash
-scripts/publish.sh report.html                          # publish a file
-cat page.html | scripts/publish.sh -                    # publish from stdin
-scripts/publish.sh dash.html --slug sales-q3            # custom slug (a-z, 0-9, hyphen; 3-40)
-scripts/publish.sh secret.html --password strong-secret # password-protected view
-scripts/publish.sh dash.html --json                     # full JSON (url, id, token)
+share publish report.html                        # publish a file → prints the live link
+cat page.html | share publish -                  # publish from stdin
+share publish dash.html --slug sales-q3          # custom slug (a-z, 0-9, hyphen; 3-40 chars)
+share publish secret.html --password strong-secret  # password-protected view
+share publish dash.html --json                   # JSON output (url, id, token)
 ```
 
 Return the printed `url` to the user — it's the deliverable.
 
-## Delete (optional)
+## Manage
 
 ```bash
-scripts/delete.sh <id> <token>    # id + token come from `publish.sh --json`
+share list           # everything you've published + time left before it expires
+share info <id>      # metadata (size, created, expiry)
+share open <id|url>  # open it in the browser
+share delete <id>    # delete before expiry (uses the token it stored at publish time)
 ```
 
-## Important rules
+`list`/`delete` work because the CLI records each doc's id + token in `~/.share/config.json`
+when you publish — the API has no accounts, so this local record is what makes management
+possible. Publish through the CLI (not raw HTTP) so those docs stay manageable.
+
+## Rules
 
 1. **Always return the link** (`url`) to the user after publishing — it's the deliverable.
-2. The HTML must be **self-contained**: inline CSS and JS, images as data URIs. Inline
-   scripts are preserved (SPA, Chart.js, D3, Plotly all work).
+2. The HTML must be **self-contained**: inline CSS/JS, images as data URIs. Inline scripts
+   are preserved (SPA, Chart.js, D3, Plotly all work).
 3. **2 MB** limit per artifact.
 4. Every artifact **expires in 15 days** — warn the user if it needs to last longer.
-5. For sensitive content, use `--password`. Without a password, anyone with the link can see it.
+5. For sensitive content use `--password`. Without one, anyone with the link can view it.
 6. If a `--slug` already exists, publishing fails with "slug already taken" — pick another.
-
-## Full flow example
-
-```bash
-# 1. Generate the artifact (you write the HTML to a file), e.g. /tmp/dashboard.html
-# 2. Publish it:
-scripts/publish.sh /tmp/dashboard.html --slug client-dashboard
-# → prints: https://share.fellipe.dev/d/client-dashboard
-# 3. Return that link to the user (mention it expires in 15 days).
-```
