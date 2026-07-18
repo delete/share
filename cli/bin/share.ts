@@ -31,7 +31,7 @@ function parse(argv: string[]): Parsed {
         const name = a.slice(2);
         const next = argv[i + 1];
         // known boolean flags don't consume the next argument
-        if (["open", "json", "help", "version", "public", "no-password"].includes(name) || next == null || next.startsWith("--")) {
+        if (["open", "json", "help", "version"].includes(name) || next == null || next.startsWith("--")) {
           flags[name] = true;
         } else {
           flags[name] = next;
@@ -99,11 +99,9 @@ async function cmdPublish(args: string[], flags: Parsed["flags"]) {
   if (!html.trim()) die("The HTML is empty.");
 
   const slug = str(flags.slug);
-  // Protected by a random password by default. `--password X` chooses one;
-  // `--public` (or `--no-password`) opts out to a link-only public doc.
-  const isPublic = flags.public === true || flags["no-password"] === true;
-  let password = str(flags.password);
-  if (!isPublic && !password) password = generatePassword();
+  // Public by default — the random id is the unguessable part. A password is added
+  // only when asked: `--password X` chooses one; bare `--password` generates a random one.
+  const password = flags.password === true ? generatePassword() : str(flags.password);
 
   info(c.dim(`Publishing to ${apiUrl} ...`));
   let result;
@@ -223,8 +221,8 @@ ${c.bold("COMMANDS")}
   config [--api=url]  Show or set the API url
 
 ${c.bold("publish OPTIONS")}
-  --password=<pass>   Choose the password (default: a random one is generated)
-  --public            Publish without a password (anyone with the link can view)
+  --password[=<pass>] Protect with a password (omit the value for a random one).
+                      Default: no password — anyone with the link can view.
   --slug=<slug>       Custom slug (a-z, 0-9, hyphen; 3-40 chars)
   --open              Open in the browser after publishing
   --json              JSON output
@@ -232,12 +230,12 @@ ${c.bold("publish OPTIONS")}
   --api=<url>         Override the API url
 
 ${c.bold("EXAMPLES")}
-  share publish report.html                     # random password (printed)
-  share publish report.html --public            # no password, link-only
+  share publish report.html                     # public link (no password)
+  share publish report.html --password          # add a random password
   share publish dash.html --slug=sales-q3 --password=secret
   echo '<h1>hi</h1>' | share publish -
 
-${c.dim("Protected by a random password by default; artifacts expire after 15 days.")}`);
+${c.dim("Public by default; add --password to protect. Artifacts expire after 15 days.")}`);
 }
 
 main().catch((e) => die((e as Error).message));

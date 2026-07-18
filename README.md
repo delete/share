@@ -2,7 +2,7 @@
 
 Instant HTML artifact sharing with integration for AI agents
 (Claude Code, Codex, and pi). Publish an HTML file and get a **live link**
-in seconds — password-protected by default (or `--public`), with an optional custom slug.
+in seconds — public by default (add `--password` to protect), with an optional custom slug.
 Everything expires automatically after **15 days**.
 
 Minimal stack: **TypeScript/Bun CLI** + **Cloudflare Workers** with **KV** (KV's native TTL
@@ -17,8 +17,8 @@ handles expiration).
 | Feature | How |
 | --- | --- |
 | Share an HTML artifact | `share publish file.html` → live link |
-| Password-protected by default | random password auto-generated (choose with `--password`) |
-| Public link (opt-in) | `--public` → anyone with the link views, no account |
+| Public link by default | unguessable random URL — anyone with the link views, no account |
+| Password protection (opt-in) | `--password` (random) or `--password=X` (chosen) |
 | Custom slug | `--slug=my-slug` |
 | 15-day expiration | Cloudflare KV native TTL |
 | AI agent integration | Claude Code, Codex, pi — see [`skill/share/`](skill/share/) |
@@ -48,8 +48,8 @@ share/
 # install the global `share` binary (once)
 cd cli && bun link
 
-share publish report.html                        # publish (random password, printed)
-share publish report.html --public               # publish without a password (link-only)
+share publish report.html                        # public link (no password)
+share publish report.html --password             # add a random password
 share publish dash.html --slug=sales-q3 --open   # custom slug + open in browser
 share publish secret.html --password=my-secret   # choose the password
 cat page.html | share publish -                  # via stdin
@@ -110,8 +110,8 @@ Restart the agent to pick up the skill.
 | `DELETE` | `/api/v1/docs/:id` | Delete (requires token). |
 
 Configurable size limit (default 2 MB, via `MAX_UPLOAD_MB`). CORS enabled on the `/api` endpoints.
-At the API level a doc is public unless you send `x-password`; the `share` CLI generates a
-random password by default (pass `--public` to opt out).
+A doc is public unless a password is set — at the API level via `x-password`, or with the
+`share` CLI's `--password` (bare for a random one, or `--password=X` to choose).
 
 ```bash
 curl -X POST https://share.fellipe.dev/api/v1/docs \
