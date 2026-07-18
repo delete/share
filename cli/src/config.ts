@@ -16,6 +16,7 @@ export interface DocEntry {
   createdAt: string;
   expiresAt: string;
   slug?: string;
+  password?: string; // stored so you can re-share it; null/absent = public
 }
 
 export interface Config {

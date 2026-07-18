@@ -2,8 +2,8 @@
 
 Instant HTML artifact sharing with integration for AI agents
 (Claude Code, Codex, and pi). Publish an HTML file and get a **live link**
-in seconds — optionally password-protected and with a custom slug. Everything expires
-automatically after **15 days**.
+in seconds — password-protected by default (or `--public`), with an optional custom slug.
+Everything expires automatically after **15 days**.
 
 Minimal stack: **TypeScript/Bun CLI** + **Cloudflare Workers** with **KV** (KV's native TTL
 handles expiration).
@@ -17,8 +17,8 @@ handles expiration).
 | Feature | How |
 | --- | --- |
 | Share an HTML artifact | `share publish file.html` → live link |
-| View by link, no account | `GET /d/:id` serves the HTML |
-| Password-protected view, no account | `--password=...` → PBKDF2 gate + signed cookie (HMAC) |
+| Password-protected by default | random password auto-generated (choose with `--password`) |
+| Public link (opt-in) | `--public` → anyone with the link views, no account |
 | Custom slug | `--slug=my-slug` |
 | 15-day expiration | Cloudflare KV native TTL |
 | AI agent integration | Claude Code, Codex, pi — see [`skill/share/`](skill/share/) |
@@ -48,9 +48,10 @@ share/
 # install the global `share` binary (once)
 cd cli && bun link
 
-share publish report.html                        # publishes and shows the link
-share publish dash.html --slug=sales-q3 --open   # slug + opens in the browser
-share publish secret.html --password=my-secret   # password-protected
+share publish report.html                        # publish (random password, printed)
+share publish report.html --public               # publish without a password (link-only)
+share publish dash.html --slug=sales-q3 --open   # custom slug + open in browser
+share publish secret.html --password=my-secret   # choose the password
 cat page.html | share publish -                  # via stdin
 share list                                       # your documents + expiration
 share info <id>                                  # metadata
@@ -109,6 +110,8 @@ Restart the agent to pick up the skill.
 | `DELETE` | `/api/v1/docs/:id` | Delete (requires token). |
 
 Configurable size limit (default 2 MB, via `MAX_UPLOAD_MB`). CORS enabled on the `/api` endpoints.
+At the API level a doc is public unless you send `x-password`; the `share` CLI generates a
+random password by default (pass `--public` to opt out).
 
 ```bash
 curl -X POST https://share.fellipe.dev/api/v1/docs \

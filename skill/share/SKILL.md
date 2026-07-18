@@ -35,15 +35,20 @@ The public reference instance is `https://share.fellipe.dev`.
 
 ## Publish
 
+By default the artifact is **password-protected with a random password** that the CLI
+prints. Return **both the link and the password** to the user. Use `--public` for a
+link-only doc, or `--password` to choose the password.
+
 ```bash
-share publish report.html                        # publish a file → prints the live link
-cat page.html | share publish -                  # publish from stdin
-share publish dash.html --slug sales-q3          # custom slug (a-z, 0-9, hyphen; 3-40 chars)
-share publish secret.html --password strong-secret  # password-protected view
-share publish dash.html --json                   # JSON output (url, id, token)
+share publish report.html                     # random password (printed) → return link + password
+share publish report.html --public            # no password, anyone with the link can view
+share publish dash.html --slug sales-q3       # custom slug (a-z, 0-9, hyphen; 3-40 chars)
+share publish secret.html --password hunter2  # choose the password
+cat page.html | share publish -               # publish from stdin
+share publish dash.html --json                # JSON output (url, id, token, password)
 ```
 
-Return the printed `url` to the user — it's the deliverable.
+Return the printed `url` — and the `password`, if the doc is protected — to the user.
 
 ## Manage
 
@@ -65,5 +70,6 @@ possible. Publish through the CLI (not raw HTTP) so those docs stay manageable.
    are preserved (SPA, Chart.js, D3, Plotly all work).
 3. **2 MB** limit per artifact.
 4. Every artifact **expires in 15 days** — warn the user if it needs to last longer.
-5. For sensitive content use `--password`. Without one, anyone with the link can view it.
+5. Docs are **password-protected by default** (random password, printed) — always pass it
+   on to the user. Use `--public` for a link-only doc, or `--password` to choose one.
 6. If a `--slug` already exists, publishing fails with "slug already taken" — pick another.

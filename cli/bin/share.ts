@@ -31,7 +31,7 @@ function parse(argv: string[]): Parsed {
         const name = a.slice(2);
         const next = argv[i + 1];
         // known boolean flags don't consume the next argument
-        if (["open", "json", "help", "version"].includes(name) || next == null || next.startsWith("--")) {
+        if (["open", "json", "help", "version", "public", "no-password"].includes(name) || next == null || next.startsWith("--")) {
           flags[name] = true;
         } else {
           flags[name] = next;
@@ -46,6 +46,15 @@ function parse(argv: string[]): Parsed {
 }
 
 const str = (v: string | boolean | undefined): string | undefined => (typeof v === "string" ? v : undefined);
+
+/** Random, readable password (no ambiguous chars). Grouped for easy typing. */
+function generatePassword(): string {
+  const alphabet = "abcdefghijkmnpqrstuvwxyz23456789"; // no l, o, 0, 1
+  const bytes = crypto.getRandomValues(new Uint8Array(8));
+  let s = "";
+  for (const b of bytes) s += alphabet[b % alphabet.length];
+  return s.slice(0, 4) + "-" + s.slice(4, 8);
+}
 
 async function main() {
   const { _, flags } = parse(process.argv.slice(2));
@@ -89,8 +98,12 @@ async function cmdPublish(args: string[], flags: Parsed["flags"]) {
   }
   if (!html.trim()) die("The HTML is empty.");
 
-  const password = str(flags.password);
   const slug = str(flags.slug);
+  // Protected by a random password by default. `--password X` chooses one;
+  // `--public` (or `--no-password`) opts out to a link-only public doc.
+  const isPublic = flags.public === true || flags["no-password"] === true;
+  let password = str(flags.password);
+  if (!isPublic && !password) password = generatePassword();
 
   info(c.dim(`Publishing to ${apiUrl} ...`));
   let result;
@@ -107,14 +120,19 @@ async function cmdPublish(args: string[], flags: Parsed["flags"]) {
     createdAt: new Date().toISOString(),
     expiresAt: result.expiresAt,
     slug,
+    password,
   });
 
   if (flags.json) {
-    console.log(JSON.stringify(result, null, 2));
+    console.log(JSON.stringify({ ...result, password: password ?? null }, null, 2));
   } else {
     ok(`Published! Expires in ${humanDuration(result.expiresAt)}.`);
     console.log("\n  " + c.bold(c.cyan(result.url)) + "\n");
-    if (result.protected) info(c.dim("  🔒 password protected"));
+    if (password) {
+      info("  🔑 password: " + c.bold(password) + c.dim("  (share it with the link)"));
+    } else {
+      info(c.dim("  🌐 public — anyone with the link can view"));
+    }
     info(c.dim(`  id: ${result.id}   ·   token saved in ~/.share/config.json`));
   }
 
@@ -205,19 +223,21 @@ ${c.bold("COMMANDS")}
   config [--api=url]  Show or set the API url
 
 ${c.bold("publish OPTIONS")}
+  --password=<pass>   Choose the password (default: a random one is generated)
+  --public            Publish without a password (anyone with the link can view)
   --slug=<slug>       Custom slug (a-z, 0-9, hyphen; 3-40 chars)
-  --password=<pass>   Protect the view with a password
   --open              Open in the browser after publishing
   --json              JSON output
   --agent=<name>      Agent label (default: share-cli)
   --api=<url>         Override the API url
 
 ${c.bold("EXAMPLES")}
-  share publish report.html --open
+  share publish report.html                     # random password (printed)
+  share publish report.html --public            # no password, link-only
   share publish dash.html --slug=sales-q3 --password=secret
   echo '<h1>hi</h1>' | share publish -
 
-${c.dim("Artifacts expire automatically after 15 days.")}`);
+${c.dim("Protected by a random password by default; artifacts expire after 15 days.")}`);
 }
 
 main().catch((e) => die((e as Error).message));
