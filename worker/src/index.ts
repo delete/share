@@ -64,11 +64,11 @@ export default {
       // Public view
       const viewMatch = path.match(/^\/d\/([^/]+)$/);
       if (viewMatch && method === "GET") {
-        return view(decodeURIComponent(viewMatch[1]), request, env);
+        return noindex(await view(decodeURIComponent(viewMatch[1]), request, env));
       }
       const unlockMatch = path.match(/^\/d\/([^/]+)\/unlock$/);
       if (unlockMatch && method === "POST") {
-        return unlock(decodeURIComponent(unlockMatch[1]), request, env);
+        return noindex(await unlock(decodeURIComponent(unlockMatch[1]), request, env));
       }
 
       return html(errorPage(404, "Not found", "This page does not exist."), 404);
@@ -278,6 +278,11 @@ function serveArtifact(body: string): Response {
       "x-content-type-options": "nosniff",
     },
   });
+}
+
+function noindex(res: Response): Response {
+  res.headers.set("x-robots-tag", "noindex, nofollow, noarchive");
+  return res;
 }
 
 function html(body: string, status = 200): Response {
