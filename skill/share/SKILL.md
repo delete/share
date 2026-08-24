@@ -52,11 +52,15 @@ Return the printed `url` to the user. If you protected it, also return the `pass
 ## Manage
 
 ```bash
-share list           # everything you've published + time left before it expires
-share info <id>      # metadata (size, created, expiry)
-share open <id|url>  # open it in the browser
-share delete <id>    # delete before expiry (uses the token it stored at publish time)
+share update <id> report.html  # replace the content, keeping the same url + expiry
+share list                     # everything you've published + time left before it expires
+share info <id>                # metadata (size, created, expiry)
+share open <id|url>            # open it in the browser
+share delete <id>              # delete before expiry (uses the token it stored at publish time)
 ```
+
+`update` reuses the link's stored token, so the url, id and expiry stay the same — only the
+HTML changes. Use it to iterate on an artifact without handing out a new link.
 
 `list`/`delete` work because the CLI records each doc's id + token in `~/.share/config.json`
 when you publish — the API has no accounts, so this local record is what makes management

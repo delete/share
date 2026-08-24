@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // share — publish HTML artifacts and get a live link.
-import { publish, getMeta, remove } from "../src/api";
+import { publish, update, getMeta, remove } from "../src/api";
 import {
   loadConfig,
   saveConfig,
@@ -66,6 +66,8 @@ async function main() {
   switch (cmd) {
     case "publish":
       return cmdPublish(_.slice(1), flags);
+    case "update":
+      return cmdUpdate(_.slice(1), flags);
     case "list":
     case "ls":
       return cmdList();
@@ -132,6 +134,48 @@ async function cmdPublish(args: string[], flags: Parsed["flags"]) {
       info(c.dim("  🌐 public — anyone with the link can view"));
     }
     info(c.dim(`  id: ${result.id}   ·   token saved in ~/.share/config.json`));
+  }
+
+  if (flags.open) await openInBrowser(result.url);
+}
+
+async function cmdUpdate(args: string[], flags: Parsed["flags"]) {
+  const id = args[0];
+  if (!id) die("Usage: share update <id> <file.html>");
+  const apiUrl = resolveApiUrl(str(flags.api));
+  const cfg = loadConfig();
+  const token = str(flags.token) || cfg.docs[id]?.token;
+  if (!token) die(`No token for "${id}". Pass --token=<token>.`);
+
+  const file = args[1];
+  let html: string;
+  if (file && file !== "-") {
+    const f = Bun.file(file);
+    if (!(await f.exists())) die(`File not found: ${file}`);
+    html = await f.text();
+  } else {
+    if (process.stdin.isTTY) die("Pass a .html file or send HTML via stdin.\nEx.: share update " + id + " page.html");
+    html = await Bun.stdin.text();
+  }
+  if (!html.trim()) die("The HTML is empty.");
+
+  info(c.dim(`Updating ${id} on ${apiUrl} ...`));
+  let result;
+  try {
+    result = await update(apiUrl, id, token, html);
+  } catch (e) {
+    die((e as Error).message);
+  }
+
+  // Keep the local record in sync (same url/token; expiry unchanged by the server).
+  const entry = cfg.docs[id];
+  if (entry) rememberDoc(id, { ...entry, expiresAt: result.expiresAt });
+
+  if (flags.json) {
+    console.log(JSON.stringify(result, null, 2));
+  } else {
+    ok(`Updated! Expires in ${humanDuration(result.expiresAt)}.`);
+    console.log("\n  " + c.bold(c.cyan(result.url)) + "\n");
   }
 
   if (flags.open) await openInBrowser(result.url);
@@ -214,6 +258,7 @@ ${c.bold("USAGE")}
 
 ${c.bold("COMMANDS")}
   publish <file>      Publish an HTML file and return the live link
+  update <id> <file>  Replace the content of an existing link (same url)
   list                List the documents you've published
   info <id>           Show metadata for a document
   open <id|url>       Open the document in the browser
@@ -231,6 +276,7 @@ ${c.bold("publish OPTIONS")}
 
 ${c.bold("EXAMPLES")}
   share publish report.html                     # public link (no password)
+  share update abcd1234 report.html             # refresh that link's content
   share publish report.html --password          # add a random password
   share publish dash.html --slug=sales-q3 --password=secret
   echo '<h1>hi</h1>' | share publish -

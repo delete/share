@@ -58,6 +58,7 @@ export default {
       if (apiMatch) {
         const id = decodeURIComponent(apiMatch[1]);
         if (method === "GET") return cors(await getMeta(id, request, env));
+        if (method === "PUT") return cors(await update(id, request, env));
         if (method === "DELETE") return cors(await remove(id, request, env));
       }
 
@@ -204,6 +205,44 @@ async function getMeta(id: string, request: Request, env: Env): Promise<Response
   });
 }
 
+async function update(id: string, request: Request, env: Env): Promise<Response> {
+  const record = await load(env, id);
+  if (!record) return json({ error: "not_found" }, 404);
+  if (!authorized(request, record.token)) return json({ error: "unauthorized" }, 401);
+
+  const ctype = request.headers.get("content-type") ?? "";
+  let htmlBody: string;
+  if (ctype.includes("application/json")) {
+    const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+    if (!body || typeof body.html !== "string") {
+      return json({ error: "invalid_body", message: "Send { html }." }, 400);
+    }
+    htmlBody = body.html;
+  } else {
+    htmlBody = await request.text();
+  }
+
+  if (!htmlBody.trim()) return json({ error: "empty", message: "The HTML is empty." }, 400);
+  const limit = maxBytes(env);
+  if (new Blob([htmlBody]).size > limit) {
+    return json({ error: "too_large", message: `Maximum ${limit / (1024 * 1024)} MB per artifact.` }, 413);
+  }
+
+  // Keep the same id, token and expiry; only the content changes. Preserve the
+  // remaining TTL so updating never extends (or shortens) the original lifetime.
+  record.html = htmlBody;
+  const ttlSeconds = Math.max(60, Math.floor((record.expiresAt - Date.now()) / 1000));
+  await env.DOCS.put(key(id), JSON.stringify(record), { expirationTtl: ttlSeconds });
+
+  return json({
+    id,
+    url: `${baseUrl(env, request)}/d/${id}`,
+    protected: !!record.password,
+    updatedAt: new Date().toISOString(),
+    expiresAt: new Date(record.expiresAt).toISOString(),
+  });
+}
+
 async function remove(id: string, request: Request, env: Env): Promise<Response> {
   const record = await load(env, id);
   if (!record) return json({ error: "not_found" }, 404);
@@ -302,7 +341,7 @@ function redirect(location: string): Response {
 
 function cors(res: Response): Response {
   res.headers.set("access-control-allow-origin", "*");
-  res.headers.set("access-control-allow-methods", "GET, POST, DELETE, OPTIONS");
+  res.headers.set("access-control-allow-methods", "GET, POST, PUT, DELETE, OPTIONS");
   res.headers.set("access-control-allow-headers", "content-type, authorization, x-doc-token, x-slug, x-password, x-agent-name");
   return res;
 }
