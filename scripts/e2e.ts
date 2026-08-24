@@ -113,7 +113,37 @@ async function main() {
   const forgedBody = await forged.text();
   check("forged cookie does NOT unlock the content", !forgedBody.includes("secret content"));
 
-  // ---- 3. management auth ----
+  // ---- 3. update existing doc ----
+  const updNoAuth = await fetch(`${BASE}/api/v1/docs/${docA.id}`, {
+    method: "PUT",
+    headers: { "content-type": "text/html" },
+    body: "<h1>nope</h1>",
+  });
+  check("update without token returns 401", updNoAuth.status === 401, `status=${updNoAuth.status}`);
+
+  const htmlAv2 = "<!doctype html><h1 id=marker2>Hello updated</h1>";
+  const upd = await fetch(`${BASE}/api/v1/docs/${docA.id}`, {
+    method: "PUT",
+    headers: { "content-type": "text/html", authorization: `Bearer ${docA.token}` },
+    body: htmlAv2,
+  });
+  check("update with token returns 200", upd.status === 200, `status=${upd.status}`);
+  const updBody = (await upd.json()) as any;
+  check("update keeps the same url", updBody.url === docA.url, `${updBody.url}`);
+
+  const viewAv2 = await fetch(`${BASE}/d/${docA.id}`);
+  const viewAv2Body = await viewAv2.text();
+  check("updated view serves the new HTML", viewAv2Body.includes("id=marker2"));
+  check("updated view no longer serves the old HTML", !viewAv2Body.includes("Hello link"));
+
+  const updMissing = await fetch(`${BASE}/api/v1/docs/does-not-exist-really`, {
+    method: "PUT",
+    headers: { "content-type": "text/html", authorization: `Bearer whatever` },
+    body: "<h1>x</h1>",
+  });
+  check("update of missing doc returns 404", updMissing.status === 404, `status=${updMissing.status}`);
+
+  // ---- 4. management auth ----
   const noAuth = await fetch(`${BASE}/api/v1/docs/${docA.id}`, { method: "DELETE" });
   check("delete without token returns 401", noAuth.status === 401, `status=${noAuth.status}`);
 

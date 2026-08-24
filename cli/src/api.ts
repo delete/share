@@ -9,6 +9,14 @@ export interface PublishResult {
   expiresInDays: number;
 }
 
+export interface UpdateResult {
+  id: string;
+  url: string;
+  protected: boolean;
+  updatedAt: string;
+  expiresAt: string;
+}
+
 export interface DocMeta {
   id: string;
   url: string;
@@ -49,6 +57,19 @@ export async function publish(apiUrl: string, html: string, opts: PublishOptions
   });
   if (!res.ok) await fail(res);
   return (await res.json()) as PublishResult;
+}
+
+export async function update(apiUrl: string, id: string, token: string, html: string): Promise<UpdateResult> {
+  const res = await fetch(`${apiUrl}/api/v1/docs/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      authorization: `Bearer ${token}`,
+    },
+    body: html,
+  });
+  if (!res.ok) await fail(res);
+  return (await res.json()) as UpdateResult;
 }
 
 export async function getMeta(apiUrl: string, id: string, token: string): Promise<DocMeta> {
